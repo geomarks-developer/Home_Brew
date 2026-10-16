@@ -384,72 +384,25 @@ def sort_frame(rows, columns, ascending):
 
 
 def create_treemap(frame, title, sector=False):
-    if frame.empty:
-        return None
+    if frame.empty: return None
     chart = frame.copy()
     value_col = "Weight" if sector else "Market Cap / Assets"
     group_col = "Sector" if sector else "Group"
     chart[value_col] = pd.to_numeric(chart[value_col], errors="coerce").fillna(1).clip(lower=1)
     chart["1 Month Change %"] = pd.to_numeric(chart["1 Month Change %"], errors="coerce")
     chart = chart.dropna(subset=["1 Month Change %"])
-    if chart.empty:
-        return None
-
-    # Descriptive hover details. Plotly includes only fields available for each map.
-    hover_data = {}
-    hover_formats = {
-        "Name": True,
-        "Price": ":$,.2f",
-        "Previous Close": ":$,.2f",
-        "Daily Change %": ":+.2%",
-        "1 Month Change %": ":+.2%",
-        "SMA 50": ":$,.2f",
-        "SMA 200": ":$,.2f",
-        "Bullish Alignment": True,
-        "Dividend Yield": ":.2%",
-        "Payout Ratio": ":.1%",
-    }
-    for field, display in hover_formats.items():
-        if field in chart.columns:
-            hover_data[field] = display
-
-    fig = px.treemap(
-        chart,
-        path=[px.Constant("Market"), group_col, "Ticker"],
-        values=value_col,
-        color="1 Month Change %",
-        color_continuous_midpoint=0,
-        color_continuous_scale=[
-            [0, "#8B0000"], [.25, "#D73027"], [.45, "#F4A6A6"],
-            [.5, "#333333"], [.55, "#A7DCA7"], [.75, "#1A9850"], [1, "#006400"],
-        ],
-        hover_data=hover_data,
-        title=title,
-    )
-
-    # Show the one-month increase/decrease directly on each heatmap tile.
-    labels = [
-        f"{number(value):+.2%}" if number(value) is not None else ""
-        for value in fig.data[0].marker.colors
-    ]
-    fig.update_traces(
-        text=labels,
-        texttemplate="<b>%{label}</b><br>%{text}",
-        marker=dict(line=dict(width=1, color="#202020")),
-        root_color="#101820",
-    )
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#101820",
-        plot_bgcolor="#101820",
-        margin=dict(t=55, l=8, r=8, b=8),
-        coloraxis_colorbar=dict(title="1 Month Change", tickformat="+.1%"),
-    )
+    if chart.empty: return None
+    formats = {"Name": True, "Price": ":$,.2f", "Previous Close": ":$,.2f", "Daily Change %": ":+.2%", "1 Month Change %": ":+.2%", "SMA 50": ":$,.2f", "SMA 200": ":$,.2f", "Bullish Alignment": True, "Dividend Yield": ":.2%", "Payout Ratio": ":.1%"}
+    hover_data = {k: v for k, v in formats.items() if k in chart.columns}
+    fig = px.treemap(chart, path=[px.Constant("Market"), group_col, "Ticker"], values=value_col, color="1 Month Change %", color_continuous_midpoint=0, color_continuous_scale=[[0,"#8B0000"],[.25,"#D73027"],[.45,"#F4A6A6"],[.5,"#333333"],[.55,"#A7DCA7"],[.75,"#1A9850"],[1,"#006400"]], hover_data=hover_data, title=title)
+    labels = [f"{number(v):+.2%}" if number(v) is not None else "" for v in fig.data[0].marker.colors]
+    fig.update_traces(text=labels, texttemplate="<b>%{label}</b><br>%{text}", marker=dict(line=dict(width=1,color="#202020")), root_color="#101820")
+    fig.update_layout(template="plotly_dark", paper_bgcolor="#101820", plot_bgcolor="#101820", margin=dict(t=55,l=8,r=8,b=8), coloraxis_colorbar=dict(title="1 Month Change",tickformat="+.1%"))
     return fig
 
 def export_assets(folder, frames):
     figures = [("S&P 100 Map", create_treemap(frames["Stock Heatmap Data"], "S&P 100 One-Month Heatmap"), "sp100_heatmap.png"),
-               ("Dividend Map", create_treemap(frames["Dividend Heatmap Data"], "Dividend Aristocrat One-Month Heatmap"), "dividend_heatmap.png"),
+               ("Dividend Map", create_treemap(frames["Dividend Heatmap Data"], "Dividend Stock One-Month Heatmap"), "dividend_heatmap.png"),
                ("ETF Map", create_treemap(frames["ETF Heatmap Data"], "ETF One-Month Heatmap"), "etf_heatmap.png"),
                ("Sector Map", create_treemap(frames["Sector Heatmap Data"], "U.S. Sector ETF One-Month Heatmap", True), "sector_heatmap.png")]
     images, html_parts = {}, []
@@ -500,6 +453,59 @@ def insert_map(workbook, name, image_path, html_path):
         image = XLImage(str(image_path)); image.width = 1350; image.height = 750; ws.add_image(image, "A4")
 
 
+
+
+def add_methodology_sheet(workbook):
+    name = "Test Methodology"
+    if name in workbook.sheetnames: del workbook[name]
+    ws = workbook.create_sheet(name, 1); ws.sheet_view.showGridLines = False; ws.freeze_panes = "A5"
+    ws["A1"] = "Screening Tests & Methodology"; ws["A1"].font = Font(size=18,bold=True,color="FFFFFF"); ws["A1"].fill = PatternFill("solid",fgColor="17365D"); ws.merge_cells("A1:F1")
+    ws["A2"] = "Tests, scoring methodology, and final pass/fail rules used by the workbook."; ws.merge_cells("A2:F2")
+    ws.append([]); ws.append(["Screener","Test / Metric","Pass Rule","Score Points","Required for Pass?","Methodology / Notes"])
+    rows = [
+      ["Stock","PEG",f"PEG < {MAX_PEG}",1,"Yes","pegRatio, with trailingPegRatio fallback."],
+      ["Stock","Forward PE",f"Forward PE < {MAX_FORWARD_PE}",1,"Yes","Forward valuation test."],
+      ["Stock","ROE",f"ROE > {MIN_ROE:.0%}",1,"Yes","Profitability test."],
+      ["Stock","Profit Margin",f"Profit Margin > {MIN_MARGIN:.0%}",1,"Yes","Profitability test."],
+      ["Stock","Revenue Growth","Revenue Growth > 0%",1,"Yes","Requires positive growth."],
+      ["Stock","Earnings Growth","Earnings Growth > 0%",1,"Yes","Requires positive growth."],
+      ["Stock","Debt to Equity",f"Debt to Equity < {MAX_DEBT_EQUITY:g}",1,"Yes","Leverage test."],
+      ["Stock","Target Upside",f"Target Upside > {MIN_UPSIDE:.0%}",1,"Yes","Target mean price must exceed current price."],
+      ["Stock","Above SMA 50","Price > 50-day SMA",1,"No","Adds a score point and contributes to Trend Test."],
+      ["Stock","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final stock pass."],
+      ["Stock","Golden Cross","SMA 50 > SMA 200",1,"No","Adds a score point and contributes to Trend Test."],
+      ["Stock / Dividend","RSI",f"{MIN_RSI:g} <= RSI <= {MAX_RSI:g}","0-2","Via momentum",f"2 points for RSI 50-{MAX_RSI:g}; 1 for {MIN_RSI:g}-<50; otherwise 0."],
+      ["Stock / Dividend","MACD","MACD > Signal","0-1","Via momentum","MACD = EMA12 - EMA26; signal = 9-period EMA of MACD."],
+      ["Stock","Final Pass","All 8 fundamental tests + Above SMA 200 + Momentum Score >= 2","N/A","Final rule","Stock maximum score is 14."],
+      ["Dividend","Dividend Yield",f"Yield > {MIN_DIVIDEND_YIELD:.1%}",1,"Yes","Yield is normalized before testing."],
+      ["Dividend","Payout Ratio",f"Payout Ratio < {MAX_PAYOUT:.0%}",1,"Yes","Payout is normalized before testing."],
+      ["Dividend","Free Cash Flow","Free Cash Flow > 0",1,"Yes","Requires positive free cash flow."],
+      ["Dividend","Debt to Equity",f"Debt to Equity < {MAX_DEBT_EQUITY:g}",1,"Yes","Leverage test."],
+      ["Dividend","Above SMA 50","Price > 50-day SMA",1,"No","Adds a score point."],
+      ["Dividend","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final dividend pass."],
+      ["Dividend","Golden Cross","SMA 50 > SMA 200",1,"No","Adds a score point."],
+      ["Dividend","Final Pass","All 4 dividend tests + Above SMA 200 + Momentum Score >= 2","N/A","Final rule","Dividend maximum score is 10."],
+      ["ETF","Expense Ratio",f"Expense Ratio < {MAX_EXPENSE_RATIO:.2%}",1,"Yes","ETF cost test."],
+      ["ETF","AUM",f"Total Assets > ${MIN_AUM:,.0f}",1,"Yes","ETF size/liquidity proxy."],
+      ["ETF","Above SMA 50","Price > 50-day SMA",1,"Yes","Required in final ETF pass."],
+      ["ETF","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final ETF pass."],
+      ["ETF","Golden Cross","SMA 50 > SMA 200",1,"Yes","Required in final ETF pass."],
+      ["ETF","Final Pass","All 5 ETF tests pass","N/A","Final rule","ETF maximum score is 5."],
+      ["All","1 Month Change",f"Latest price / price {MONTH_LOOKBACK} trading days earlier - 1",0,"No","Heatmap color and displayed percentage only."],
+      ["All","Bullish Alignment","Above SMA 50 + Above SMA 200 + Golden Cross",0,"No","Descriptive dashboard/heatmap indicator."],
+      ["All","Unavailable Data","Unavailable metric fails its individual test",0,"Depends","Details are listed in Failed Tests."],
+    ]
+    for r in rows: ws.append(r)
+    for c in ws[4]: c.fill=PatternFill("solid",fgColor="5B9BD5"); c.font=Font(color="FFFFFF",bold=True); c.alignment=Alignment(horizontal="center",wrap_text=True)
+    fills={"Stock":"D9EAF7","Dividend":"E2F0D9","ETF":"FFF2CC","All":"E7E6E6","Stock / Dividend":"E4DFEC"}
+    for r in ws.iter_rows(min_row=5):
+        color=fills.get(r[0].value)
+        for c in r:
+            if color: c.fill=PatternFill("solid",fgColor=color)
+            c.alignment=Alignment(vertical="top",wrap_text=True)
+    for col,width in {"A":18,"B":23,"C":55,"D":14,"E":18,"F":62}.items(): ws.column_dimensions[col].width=width
+    ws.auto_filter.ref=f"A4:F{ws.max_row}"
+
 def save_workbook(path, frames, images):
     wb = load_workbook(path)
     for name, frame in frames.items(): write_dataframe(wb, name, frame)
@@ -508,6 +514,7 @@ def save_workbook(path, frames, images):
     ws = wb.create_sheet("Dashboard", 0); ws.append(["Investment Screening Dashboard"]); ws.append(["Last Refresh", datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")]); ws.append([]); ws.append(["Section", "Tickers", "Passing", "Strong Uptrends"])
     for label, key in [("Stocks", "Stock Screener"), ("Dividends", "Dividend Screener"), ("ETFs", "ETF Screener")]:
         frame = frames[key]; passing = int(frame["Passes Screen"].fillna(False).sum()) if not frame.empty else 0; bullish = int(frame["Bullish Alignment"].fillna(False).sum()) if not frame.empty else 0; ws.append([label, len(frame), passing, bullish])
+    add_methodology_sheet(wb)
     wb.calculation.fullCalcOnLoad = True; wb.calculation.forceFullCalc = True; wb.save(path)
 
 
