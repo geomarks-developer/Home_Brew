@@ -2,7 +2,7 @@
 # and sector ETF heatmaps.
 #
 # Expected workbook: Combo_Analysis.xlsx in the same folder as this script.
-# Tickers sheet: A=stocks, B=dividend stocks, C=ETFs, D=S&P 500 stocks.
+# Tickers sheet: A=stocks, B=dividend stocks, C=ETFs, D=S&P 100 stocks.
 #
 # Install:
 #     pip install yfinance pandas openpyxl pillow plotly kaleido
@@ -77,7 +77,7 @@ def create_starter(path):
     wb = Workbook()
     ws = wb.active
     ws.title = TICKERS_SHEET
-    ws.append(["Stock", "Dividend", "ETF", "S&P 500"])
+    ws.append(["Stock", "Dividend", "ETF", "S&P 100"])
     ws.freeze_panes = "A2"
     for cell in ws[1]:
         cell.fill = PatternFill("solid", fgColor="1F4E78")
@@ -93,7 +93,7 @@ def read_tickers(path):
         raise KeyError('The workbook needs a sheet named "Tickers".')
     ws = wb[TICKERS_SHEET]
     result = {}
-    for name, col in {"stocks": 1, "dividends": 2, "etfs": 3, "sp500": 4}.items():
+    for name, col in {"stocks": 1, "dividends": 2, "etfs": 3, "sp100": 4}.items():
         values = [normalize_ticker(ws.cell(row, col).value) for row in range(2, ws.max_row + 1)]
         result[name] = list(dict.fromkeys(value for value in values if value))
     wb.close()
@@ -193,21 +193,57 @@ def stock_rows(tickers, histories, cache):
         revenue = number(info.get("revenueGrowth"))
         earnings = number(info.get("earningsGrowth"))
         debt = number(info.get("debtToEquity"))
-        tests = [
-            compare(peg, "lt", MAX_PEG), compare(pe, "lt", MAX_FORWARD_PE),
-            compare(roe, "gt", MIN_ROE), compare(margin, "gt", MIN_MARGIN),
-            compare(revenue, "gt", 0), compare(earnings, "gt", 0),
-            compare(debt, "lt", MAX_DEBT_EQUITY), compare(upside, "gt", MIN_UPSIDE),
-            p["Above SMA 50"], p["Above SMA 200"], p["SMA 50 > SMA 200"],
-        ]
+
+        peg_test = compare(peg, "lt", MAX_PEG)
+        pe_test = compare(pe, "lt", MAX_FORWARD_PE)
+        roe_test = compare(roe, "gt", MIN_ROE)
+        margin_test = compare(margin, "gt", MIN_MARGIN)
+        revenue_test = compare(revenue, "gt", 0)
+        earnings_test = compare(earnings, "gt", 0)
+        debt_test = compare(debt, "lt", MAX_DEBT_EQUITY)
+        upside_test = compare(upside, "gt", MIN_UPSIDE)
+        above_50_test = p["Above SMA 50"]
+        above_200_test = p["Above SMA 200"]
+        golden_cross_test = p["SMA 50 > SMA 200"]
+        trend_test = above_50_test and above_200_test and golden_cross_test
+
+        tests = [peg_test, pe_test, roe_test, margin_test, revenue_test, earnings_test,
+                 debt_test, upside_test, above_50_test, above_200_test, golden_cross_test]
+
+        failed_tests = []
+        for value, passed, unavailable, failed in [
+            (peg, peg_test, "PEG unavailable", "PEG too high"),
+            (pe, pe_test, "Forward PE unavailable", "Forward PE too high"),
+            (roe, roe_test, "ROE unavailable", "ROE too low"),
+            (margin, margin_test, "Profit margin unavailable", "Profit margin too low"),
+            (revenue, revenue_test, "Revenue growth unavailable", "Revenue growth not positive"),
+            (earnings, earnings_test, "Earnings growth unavailable", "Earnings growth not positive"),
+            (debt, debt_test, "Debt to equity unavailable", "Debt to equity too high"),
+            (upside, upside_test, "Target upside unavailable", "Target upside not positive"),
+        ]:
+            if value is None:
+                failed_tests.append(unavailable)
+            elif not passed:
+                failed_tests.append(failed)
+        if not above_50_test: failed_tests.append("Below SMA 50")
+        if not above_200_test: failed_tests.append("Below SMA 200")
+        if not golden_cross_test: failed_tests.append("SMA 50 not above SMA 200")
+
         rows.append({
             "Ticker": ticker, "Name": info.get("shortName") or info.get("longName"),
             "Sector": info.get("sector"), "Industry": info.get("industry"), **p,
             "Target Price": target, "Upside %": upside, "PEG": peg, "Forward PE": pe,
             "Return On Equity": roe, "Profit Margin": margin, "Revenue Growth": revenue,
             "Earnings Growth": earnings, "Debt To Equity": debt,
-            "Free Cash Flow": number(info.get("freeCashflow")), "Score": sum(tests),
-            "Max Score": len(tests), "Passes Screen": all(tests[:8]) and p["Above SMA 200"],
+            "Free Cash Flow": number(info.get("freeCashflow")),
+            "PEG Test": peg_test, "Forward PE Test": pe_test, "ROE Test": roe_test,
+            "Profit Margin Test": margin_test, "Revenue Growth Test": revenue_test,
+            "Earnings Growth Test": earnings_test, "Debt To Equity Test": debt_test,
+            "Upside Test": upside_test, "Above SMA 50 Test": above_50_test,
+            "Above SMA 200 Test": above_200_test, "Golden Cross Test": golden_cross_test,
+            "Trend Test": trend_test, "Failed Tests": ", ".join(failed_tests) if failed_tests else None,
+            "Score": sum(tests), "Max Score": len(tests),
+            "Passes Screen": all(tests[:8]) and above_200_test,
             "Error": None if info else "Data unavailable",
         })
     return rows
@@ -225,46 +261,194 @@ def dividend_rows(tickers, histories, cache):
         cash_flow = number(info.get("freeCashflow"))
         debt = number(info.get("debtToEquity"))
         average_yield = number(info.get("fiveYearAvgDividendYield"))
-        tests = [
-            compare(dividend_yield, "gt", MIN_DIVIDEND_YIELD),
-            compare(payout_ratio, "lt", MAX_PAYOUT),
-            cash_flow is not None and cash_flow > 0,
-            compare(debt, "lt", MAX_DEBT_EQUITY),
-            p["Above SMA 50"], p["Above SMA 200"], p["SMA 50 > SMA 200"],
+
+        yield_test = compare(dividend_yield, "gt", MIN_DIVIDEND_YIELD)
+        payout_test = compare(payout_ratio, "lt", MAX_PAYOUT)
+        cash_flow_test = cash_flow is not None and cash_flow > 0
+        debt_test = compare(debt, "lt", MAX_DEBT_EQUITY)
+        above_50_test = p["Above SMA 50"]
+        above_200_test = p["Above SMA 200"]
+        golden_cross_test = p["SMA 50 > SMA 200"]
+        trend_test = above_50_test and above_200_test and golden_cross_test
+        tests = [yield_test, payout_test, cash_flow_test, debt_test,
+                 above_50_test, above_200_test, golden_cross_test]
+
+        failed_tests = []
+        checks = [
+            (dividend_yield, yield_test, "Dividend yield unavailable", "Dividend yield below minimum"),
+            (payout_ratio, payout_test, "Payout ratio unavailable", "Payout ratio too high"),
+            (cash_flow, cash_flow_test, "Free cash flow unavailable", "Free cash flow not positive"),
+            (debt, debt_test, "Debt to equity unavailable", "Debt to equity too high"),
         ]
+        for value, passed, unavailable, failed in checks:
+            if value is None: failed_tests.append(unavailable)
+            elif not passed: failed_tests.append(failed)
+        if not above_50_test: failed_tests.append("Below SMA 50")
+        if not above_200_test: failed_tests.append("Below SMA 200")
+        if not golden_cross_test: failed_tests.append("SMA 50 not above SMA 200")
+
         rows.append({
             "Ticker": ticker, "Name": info.get("shortName") or info.get("longName"),
             "Sector": info.get("sector"), **p, "Dividend Yield": dividend_yield,
             "5Y Avg Dividend Yield": average_yield / 100 if average_yield is not None else None,
-            "Payout Ratio": payout_ratio, "Free Cash Flow": cash_flow,
-            "Debt To Equity": debt, "Score": sum(tests), "Max Score": len(tests),
-            "Passes Screen": all(tests[:4]) and p["Above SMA 200"],
+            "Payout Ratio": payout_ratio, "Free Cash Flow": cash_flow, "Debt To Equity": debt,
+            "Dividend Yield Test": yield_test, "Payout Ratio Test": payout_test,
+            "Free Cash Flow Test": cash_flow_test, "Debt To Equity Test": debt_test,
+            "Above SMA 50 Test": above_50_test, "Above SMA 200 Test": above_200_test,
+            "Golden Cross Test": golden_cross_test, "Trend Test": trend_test,
+            "Failed Tests": ", ".join(failed_tests) if failed_tests else None,
+            "Score": sum(tests), "Max Score": len(tests),
+            "Passes Screen": all(tests[:4]) and above_200_test,
             "Error": None if info else "Data unavailable",
         })
     return rows
 
+def fund_operation_value(operations, row_names, ticker):
+    """Read a numeric ETF metric from yfinance funds_data.fund_operations."""
+    if operations is None or not isinstance(operations, pd.DataFrame) or operations.empty:
+        return None
 
-def etf_rows(tickers, histories, cache):
+    normalized_rows = {str(index).strip().lower(): index for index in operations.index}
+    normalized_columns = {str(column).strip().lower(): column for column in operations.columns}
+
+    for row_name in row_names:
+        row_key = str(row_name).strip().lower()
+        if row_key not in normalized_rows:
+            continue
+
+        actual_row = normalized_rows[row_key]
+        preferred_columns = [ticker.lower(), "fund", "value"]
+
+        for column_name in preferred_columns:
+            if column_name in normalized_columns:
+                value = number(operations.loc[actual_row, normalized_columns[column_name]])
+                if value is not None:
+                    return value
+
+        row = operations.loc[actual_row]
+        if isinstance(row, pd.Series):
+            for raw_value in row.tolist():
+                value = number(raw_value)
+                if value is not None:
+                    return value
+        else:
+            value = number(row)
+            if value is not None:
+                return value
+
+    return None
+
+
+def get_etf_fund_metrics(ticker, info, fund_cache):
+    """Get expense ratio and net assets, preferring ETF-specific fund data."""
+    if ticker in fund_cache:
+        return fund_cache[ticker]
+
+    expense = number(info.get("annualReportExpenseRatio") or info.get("netExpenseRatio"))
+    assets = number(info.get("totalAssets"))
+    expense_source = "Ticker info" if expense is not None else None
+    assets_source = "Ticker info" if assets is not None else None
+
+    try:
+        fund_data = yf.Ticker(ticker).funds_data
+        operations = fund_data.fund_operations
+
+        fund_expense = fund_operation_value(
+            operations,
+            ["Annual Report Expense Ratio", "Net Expense Ratio", "Expense Ratio"],
+            ticker,
+        )
+        if fund_expense is not None:
+            # fund_operations reports expense ratios as percentage values.
+            # Example: 0.08 means 0.08%, so convert to decimal form (0.0008)
+            # for screening and Excel percentage formatting.
+            if fund_expense >= 0.01:
+                fund_expense /= 100
+            expense = fund_expense
+            expense_source = "Funds data"
+
+        fund_assets = fund_operation_value(
+            operations,
+            ["Total Net Assets", "Net Assets", "Total Assets"],
+            ticker,
+        )
+        if assets is None and fund_assets is not None:
+            # fund_operations may report net assets in millions.
+            assets = fund_assets * 1_000_000 if fund_assets < 10_000_000 else fund_assets
+            assets_source = "Funds data"
+
+    except Exception as exc:
+        print(f"  Warning: ETF fund data unavailable for {ticker}: {exc}")
+
+    result = {
+        "Expense Ratio": expense,
+        "Total Assets": assets,
+        "Expense Source": expense_source or "Unavailable",
+        "Assets Source": assets_source or "Unavailable",
+    }
+    fund_cache[ticker] = result
+    return result
+
+
+def etf_rows(tickers, histories, cache, fund_cache):
     rows = []
     for n, ticker in enumerate(tickers, 1):
         print(f"ETF {n}/{len(tickers)}: {ticker}")
         info = get_info(ticker, cache)
         p = price_metrics(histories.get(ticker))
-        expense = number(info.get("annualReportExpenseRatio") or info.get("netExpenseRatio"))
-        expense = expense / 100
-        assets = number(info.get("totalAssets"))
-        tests = [
-            compare(expense, "lt", MAX_EXPENSE_RATIO), compare(assets, "gt", MIN_AUM),
-            p["Above SMA 50"], p["Above SMA 200"], p["SMA 50 > SMA 200"],
-        ]
+        fund = get_etf_fund_metrics(ticker, info, fund_cache)
+        expense = fund["Expense Ratio"]
+        assets = fund["Total Assets"]
+
+        expense_test = compare(expense, "lt", MAX_EXPENSE_RATIO)
+        aum_test = compare(assets, "gt", MIN_AUM)
+        above_50_test = p["Above SMA 50"]
+        above_200_test = p["Above SMA 200"]
+        golden_cross_test = p["SMA 50 > SMA 200"]
+        data_complete = expense is not None and assets is not None
+        trend_test = above_50_test and above_200_test and golden_cross_test
+        passes = data_complete and expense_test and aum_test and trend_test
+
+        tests = [expense_test, aum_test, above_50_test, above_200_test, golden_cross_test]
+        failed_tests = []
+        if expense is None:
+            failed_tests.append("Expense ratio unavailable")
+        elif not expense_test:
+            failed_tests.append("Expense ratio too high")
+        if assets is None:
+            failed_tests.append("AUM unavailable")
+        elif not aum_test:
+            failed_tests.append("AUM below minimum")
+        if not above_50_test:
+            failed_tests.append("Below SMA 50")
+        if not above_200_test:
+            failed_tests.append("Below SMA 200")
+        if not golden_cross_test:
+            failed_tests.append("SMA 50 not above SMA 200")
+
         rows.append({
-            "Ticker": ticker, "Name": info.get("shortName") or info.get("longName"),
-            "Category": info.get("category"), **p, "Expense Ratio": expense,
-            "Total Assets": assets, "Yield": number(info.get("yield")),
+            "Ticker": ticker,
+            "Name": info.get("shortName") or info.get("longName"),
+            "Category": info.get("category"),
+            **p,
+            "Expense Ratio": expense,
+            "Expense Source": fund["Expense Source"],
+            "Total Assets": assets,
+            "Assets Source": fund["Assets Source"],
+            "Expense Test": expense_test,
+            "AUM Test": aum_test,
+            "Above SMA 50 Test": above_50_test,
+            "Above SMA 200 Test": above_200_test,
+            "Golden Cross Test": golden_cross_test,
+            "Trend Test": trend_test,
+            "Data Complete": data_complete,
+            "Failed Tests": ", ".join(failed_tests) if failed_tests else None,
+            "Yield": number(info.get("yield")),
             "3Y Average Return": number(info.get("threeYearAverageReturn")),
             "5Y Average Return": number(info.get("fiveYearAverageReturn")),
-            "Score": sum(tests), "Max Score": len(tests),
-            "Passes Screen": tests[0] and tests[1] and p["Above SMA 200"],
+            "Score": sum(tests),
+            "Max Score": len(tests),
+            "Passes Screen": passes,
             "Error": None if info else "Data unavailable",
         })
     return rows
@@ -369,24 +553,24 @@ def create_sector_treemap(frame):
     if frame.empty:
         return None
     chart = frame.copy()
-    chart["Daily Change %"] = pd.to_numeric(chart["Daily Change %"], errors="coerce")
+    chart["1 Month Change %"] = pd.to_numeric(chart["1 Month Change %"], errors="coerce")
     chart["Weight"] = pd.to_numeric(chart["Weight"], errors="coerce").fillna(1).clip(lower=1)
-    chart = chart.dropna(subset=["Daily Change %"])
+    chart = chart.dropna(subset=["1 Month Change %"])
     if chart.empty:
         return None
     fig = px.treemap(
         chart, path=[px.Constant("U.S. Sectors"), "Sector", "Ticker"], values="Weight",
-        color="Daily Change %", color_continuous_midpoint=0,
+        color="1 Month Change %", color_continuous_midpoint=0,
         color_continuous_scale=market_colors(),
-        custom_data=["Name", "Price", "Previous Close", "1 Month Change %", "SMA 50", "SMA 200", "Bullish Alignment"],
-        title="U.S. Sector ETF Daily Heatmap",
+        custom_data=["Name", "Price", "Previous Close", "Daily Change %", "SMA 50", "SMA 200", "Bullish Alignment"],
+        title="U.S. Sector ETF One-Month Heatmap",
     )
     labels = [f"{number(v):+.2%}" if number(v) is not None else "" for v in fig.data[0].marker.colors]
     fig.update_traces(
         text=labels, texttemplate="<b>%{label}</b><br>%{text}",
         hovertemplate=(
-            "<b>%{label}</b><br>%{customdata[0]}<br>Daily Change: %{color:+.2%}<br>"
-            "1 Month Change: %{customdata[3]:+.2%}<br>Price: $%{customdata[1]:,.2f}<br>"
+            "<b>%{label}</b><br>%{customdata[0]}<br>1 Month Change: %{color:+.2%}<br>"
+            "Daily Change: %{customdata[3]:+.2%}<br>Price: $%{customdata[1]:,.2f}<br>"
             "Previous Close: $%{customdata[2]:,.2f}<br>SMA 50: $%{customdata[4]:,.2f}<br>"
             "SMA 200: $%{customdata[5]:,.2f}<br>Bullish Alignment: %{customdata[6]}<extra></extra>"
         ),
@@ -395,7 +579,7 @@ def create_sector_treemap(frame):
     fig.update_layout(
         template="plotly_dark", paper_bgcolor="#101820", plot_bgcolor="#101820",
         margin=dict(t=55, l=8, r=8, b=8),
-        coloraxis_colorbar=dict(title="Daily Change", tickformat="+.1%"),
+        coloraxis_colorbar=dict(title="1 Month Change", tickformat="+.1%"),
     )
     return fig
 
@@ -432,13 +616,13 @@ def create_html(path, frames, figures):
 
 def export_assets(folder, frames):
     figures = [
-        ("S&P 500", create_treemap(frames["Stock Heatmap Data"], "S&P 500 One-Month Heatmap")),
+        ("S&P 100", create_treemap(frames["Stock Heatmap Data"], "S&P 100 One-Month Heatmap")),
         ("Dividend", create_treemap(frames["Dividend Heatmap Data"], "Dividend Stock One-Month Heatmap", True)),
         ("ETF", create_treemap(frames["ETF Heatmap Data"], "ETF One-Month Heatmap")),
         ("Sector ETF", create_sector_treemap(frames["Sector Heatmap Data"])),
     ]
     exports = [
-        ("S&P 500 Map", figures[0][1], "sp500_heatmap.png"),
+        ("S&P 100 Map", figures[0][1], "sp100_heatmap.png"),
         ("Dividend Map", figures[1][1], "dividend_heatmap.png"),
         ("ETF Map", figures[2][1], "etf_heatmap.png"),
         ("Sector Map", figures[3][1], "sector_heatmap.png"),
@@ -529,7 +713,7 @@ def save_workbook(path, frames, images):
     ]:
         write_dataframe(wb, name, frames[name])
     html_path = path.parent / HTML_NAME
-    for name in ["S&P 500 Map", "Dividend Map", "ETF Map", "Sector Map"]:
+    for name in ["S&P 100 Map", "Dividend Map", "ETF Map", "Sector Map"]:
         insert_map(wb, name, images.get(name), html_path)
     if "Dashboard" in wb.sheetnames:
         del wb["Dashboard"]
@@ -571,7 +755,7 @@ def main():
     lists = read_tickers(workbook_path)
     sector_tickers = [config["Ticker"] for config in SECTOR_ETFS.values()]
     all_tickers = list(dict.fromkeys(
-        lists["stocks"] + lists["dividends"] + lists["etfs"] + lists["sp500"] + sector_tickers
+        lists["stocks"] + lists["dividends"] + lists["etfs"] + lists["sp100"] + sector_tickers
     ))
     if not all_tickers:
         print("No tickers found.")
@@ -579,11 +763,12 @@ def main():
     print(f"Downloading history for {len(all_tickers)} tickers...")
     histories = download_history(all_tickers)
     cache = {}
+    fund_cache = {}
     frames = {
         "Stock Screener": sort_frame(stock_rows(lists["stocks"], histories, cache), ["Passes Screen", "Score", "Ticker"], [False, False, True]),
         "Dividend Screener": sort_frame(dividend_rows(lists["dividends"], histories, cache), ["Passes Screen", "Score", "Dividend Yield"], [False, False, False]),
-        "ETF Screener": sort_frame(etf_rows(lists["etfs"], histories, cache), ["Passes Screen", "Score", "Ticker"], [False, False, True]),
-        "Stock Heatmap Data": sort_frame(heatmap_rows(lists["sp500"], histories, cache), ["Group", "1 Month Change %"], [True, False]),
+        "ETF Screener": sort_frame(etf_rows(lists["etfs"], histories, cache, fund_cache), ["Passes Screen", "Score", "Ticker"], [False, False, True]),
+        "Stock Heatmap Data": sort_frame(heatmap_rows(lists["sp100"], histories, cache), ["Group", "1 Month Change %"], [True, False]),
         "Dividend Heatmap Data": sort_frame(heatmap_rows(lists["dividends"], histories, cache, True), ["Group", "1 Month Change %"], [True, False]),
         "ETF Heatmap Data": sort_frame(heatmap_rows(lists["etfs"], histories, cache), ["Group", "1 Month Change %"], [True, False]),
         "Sector Heatmap Data": sort_frame(sector_heatmap_rows(histories, cache), ["Daily Change %", "Sector"], [False, True]),
