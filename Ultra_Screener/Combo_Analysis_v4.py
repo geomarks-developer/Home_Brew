@@ -159,10 +159,16 @@ def dividend_rows(tickers, histories, cache):
     for n, ticker in enumerate(tickers, 1):
         print(f"Dividend {n}/{len(tickers)}: {ticker}")
         info = get_info(ticker, cache); p = price_metrics(histories.get(ticker))
-        dividend_yield = number(info.get("dividendYield"))
-        # Some sources return 0.055, others return 5.5
-        if dividend_yield is not None and dividend_yield > 1:
-            dividend_yield = dividend_yield / 100
+
+        dividend_yield = info.get("dividendYield")
+        if dividend_yield is not None:
+            # Fix Yahoo returning whole numbers instead of fractions
+            if dividend_yield > 1:          # e.g., 0.88 → 88%
+                dividend_yield = dividend_yield / 100
+
+        # Filter out impossible yields (>25%)
+        if dividend_yield > 0.25:
+             continue
   
         payout_ratio = number(info.get("payoutRatio"))
         if payout_ratio is not None and payout_ratio > 1:
@@ -215,11 +221,17 @@ def heatmap_rows(tickers, histories, cache, dividend=False):
                "SMA 200": p["SMA 200"], "Above SMA 50": p["Above SMA 50"],
                "Above SMA 200": p["Above SMA 200"], "Bullish Alignment": p["Bullish Alignment"]}
         if dividend:
-            dividend_yield = number(info.get("dividendYield"))
-            # Some sources return 0.055, others return 5.5
-            if dividend_yield is not None and dividend_yield > 1:
-                dividend_yield = dividend_yield / 100
-            row["Dividend Yield"] = dividend_yield
+
+            dividend_yield = info.get("dividendYield")
+            if dividend_yield is not None:
+                # Fix Yahoo returning whole numbers instead of fractions
+                if dividend_yield > 1:          # e.g., 0.88 → 88%
+                    dividend_yield = dividend_yield / 100
+                row["Dividend Yield"] = dividend_yield
+
+            # Filter out impossible yields (>25%)
+            if dividend_yield > 0.25:
+                continue
 
             payout_ratio = number(info.get("payoutRatio"))
             if payout_ratio is not None and payout_ratio > 1:
