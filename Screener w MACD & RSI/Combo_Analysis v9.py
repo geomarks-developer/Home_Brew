@@ -193,7 +193,7 @@ def get_info(ticker, cache):
 
 def normalized_dividend_values(info):
     dividend_yield, payout = number(info.get("dividendYield")), number(info.get("payoutRatio"))
-    if dividend_yield is not None and dividend_yield > 1:
+    if dividend_yield is not None and dividend_yield > .25:
         dividend_yield /= 100
     if payout is not None and payout > 1:
         payout /= 100
@@ -281,7 +281,7 @@ def dividend_rows(tickers, histories, cache):
         rsi_score, macd_score, momentum_score = momentum_scores(p)
         dividend_yield, payout = normalized_dividend_values(info)
         if dividend_yield is not None and dividend_yield > 0.25:
-            continue
+            dividend_yield = dividend_yield / 100
         cash_flow, debt = number(info.get("freeCashflow")), number(info.get("debtToEquity"))
         average_yield = number(info.get("fiveYearAvgDividendYield"))
         test_values = [
@@ -359,7 +359,7 @@ def heatmap_rows(tickers, histories, cache, dividend=False):
         row = {"Ticker": ticker, "Name": info.get("shortName") or info.get("longName"),
                "Group": info.get("sector") or info.get("category") or "Unclassified",
                "Market Cap / Assets": number(info.get("marketCap") or info.get("totalAssets")) or 1,
-               "Price": p["Price"], "Daily Change %": p["Daily Change %"], "1 Month Change %": p["1 Month Change %"],
+               "Price": p["Price"], "Previous Close": p["Previous Close"], "Daily Change %": p["Daily Change %"], "1 Month Change %": p["1 Month Change %"],
                "SMA 50": p["SMA 50"], "SMA 200": p["SMA 200"], "Bullish Alignment": p["Bullish Alignment"]}
         if dividend:
             row["Dividend Yield"], row["Payout Ratio"] = normalized_dividend_values(info)
@@ -384,24 +384,72 @@ def sort_frame(rows, columns, ascending):
 
 
 def create_treemap(frame, title, sector=False):
-    if frame.empty: return None
+    if frame.empty:
+        return None
     chart = frame.copy()
     value_col = "Weight" if sector else "Market Cap / Assets"
     group_col = "Sector" if sector else "Group"
     chart[value_col] = pd.to_numeric(chart[value_col], errors="coerce").fillna(1).clip(lower=1)
     chart["1 Month Change %"] = pd.to_numeric(chart["1 Month Change %"], errors="coerce")
     chart = chart.dropna(subset=["1 Month Change %"])
-    if chart.empty: return None
-    fig = px.treemap(chart, path=[px.Constant("Market"), group_col, "Ticker"], values=value_col,
-                     color="1 Month Change %", color_continuous_midpoint=0,
-                     color_continuous_scale=[[0, "#8B0000"], [.5, "#333333"], [1, "#006400"]], title=title)
-    fig.update_layout(template="plotly_dark", paper_bgcolor="#101820", plot_bgcolor="#101820")
-    return fig
+    if chart.empty:
+        return None
 
+    # Descriptive hover details. Plotly includes only fields available for each map.
+    hover_data = {}
+    hover_formats = {
+        "Name": True,
+        "Price": ":$,.2f",
+        "Previous Close": ":$,.2f",
+        "Daily Change %": ":+.2%",
+        "1 Month Change %": ":+.2%",
+        "SMA 50": ":$,.2f",
+        "SMA 200": ":$,.2f",
+        "Bullish Alignment": True,
+        "Dividend Yield": ":.2%",
+        "Payout Ratio": ":.1%",
+    }
+    for field, display in hover_formats.items():
+        if field in chart.columns:
+            hover_data[field] = display
+
+    fig = px.treemap(
+        chart,
+        path=[px.Constant("Market"), group_col, "Ticker"],
+        values=value_col,
+        color="1 Month Change %",
+        color_continuous_midpoint=0,
+        color_continuous_scale=[
+            [0, "#8B0000"], [.25, "#D73027"], [.45, "#F4A6A6"],
+            [.5, "#333333"], [.55, "#A7DCA7"], [.75, "#1A9850"], [1, "#006400"],
+        ],
+        hover_data=hover_data,
+        title=title,
+    )
+
+    # Show the one-month increase/decrease directly on each heatmap tile.
+    labels = [
+        f"{number(value):+.2%}" if number(value) is not None else ""
+        for value in fig.data[0].marker.colors
+    ]
+    fig.update_traces(
+        text=labels,
+        texttemplate="<b>%{label}</b><br>%{text}",
+        marker=dict(line=dict(width=1, color="#202020")),
+        root_color="#101820",
+    )
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="#101820",
+        plot_bgcolor="#101820",
+        margin=dict(t=55, l=8, r=8, b=8),
+        coloraxis_colorbar=dict(title="1 Month Change", tickformat="+.1%"),
+    )
+    return fig
 
 def export_assets(folder, frames):
     figures = [("S&P 100 Map", create_treemap(frames["Stock Heatmap Data"], "S&P 100 One-Month Heatmap"), "sp100_heatmap.png"),
-               ("Dividend Map", create_treemap(frames["Dividend Heatmap Data"], "Dividend Stock One-Month Heatmap"), "dividend_heatmap.png"),
+               ("Dividend Map", create_treemap(frames["Dividend Heatmap Data"], "Dividend Aristocrat One-Month Heatmap"), "dividend_heatmap.png"),
                ("ETF Map", create_treemap(frames["ETF Heatmap Data"], "ETF One-Month Heatmap"), "etf_heatmap.png"),
                ("Sector Map", create_treemap(frames["Sector Heatmap Data"], "U.S. Sector ETF One-Month Heatmap", True), "sector_heatmap.png")]
     images, html_parts = {}, []
