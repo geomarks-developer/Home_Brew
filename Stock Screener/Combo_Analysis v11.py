@@ -322,6 +322,7 @@ def dividend_rows(tickers, histories, cache):
 def get_etf_metrics(ticker, info, cache):
     if ticker in cache: return cache[ticker]
     expense = number(info.get("annualReportExpenseRatio") or info.get("netExpenseRatio"))
+    expense = expense / 100
     assets = number(info.get("totalAssets"))
     cache[ticker] = {"Expense Ratio": expense, "Total Assets": assets}
     return cache[ticker]
