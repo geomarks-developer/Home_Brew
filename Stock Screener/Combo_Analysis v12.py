@@ -13,6 +13,8 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+import textwrap
+import pickle
 
 WORKBOOK_NAME = "Combo_Analysis.xlsx"
 TICKERS_SHEET = "Tickers"
@@ -102,7 +104,7 @@ def download_history(tickers):
         return {}
     data = yf.download(
         tickers,
-        period="1y",
+        period="5y",
         interval="1d",
         auto_adjust=False,
         actions=False,
@@ -772,9 +774,25 @@ def add_methodology_sheet(workbook):
     # (Glossary content omitted for brevity — identical to v11)
     # You can paste your existing glossary rows here unchanged.
 
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
 # One‑page summary tab for owned tickers
 # ---------------------------------------------------------
+import pandas as pd
+
+def fmt_pct(value, decimals=1):
+    if pd.isna(value):
+        return "N/A"
+    return f"{value:.{decimals}f}%" 
+
+def fmt_price(value):
+    if pd.isna(value):
+        return "N/A"
+    return f"${value:,.0f}"
+
+def fmt_num(value, decimals=1):
+    if pd.isna(value):
+        return "N/A"
+    return f"{value:,.{decimals}f}" 
 
 def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     name = f"{ticker} Summary"
@@ -794,51 +812,66 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     def add(section, metric, value):
         ws.append([section, metric, value])
 
-    # Profile
+    # Profile   
     add("Profile", "Name", info.get("shortName"))
     add("Profile", "Sector", info.get("sector"))
     add("Profile", "Industry", info.get("industry"))
-    add("Profile", "Market Cap", info.get("marketCap"))
-    add("Profile", "Description", info.get("longBusinessSummary"))
+    add("Profile", "Market Cap", fmt_price(metrics.get("marketCap")))
+    summary = metrics.get("longBusinessSummary", "N/A")
+    summary = summary.split(".", 1)[0] + "." if summary != "N/A" else summary
+    add("Company", "Business Summary", summary)
 
     # Price
-    add("Price", "Price", metrics["Price"])
-    add("Price", "Previous Close", metrics["Previous Close"])
-    add("Price", "Daily Change %", metrics["Daily Change %"])
-    add("Price", "1 Month Change %", metrics["1 Month Change %"])
-    add("Price", "SMA 50", metrics["SMA 50"])
-    add("Price", "SMA 200", metrics["SMA 200"])
-    add("Price", "Bullish Alignment", metrics["Bullish Alignment"])
+    add("Price", "Price", fmt_price(metrics.get('Price')))
+    add("Price", "Previous Close", fmt_price(metrics.get("Previous Close")))
+    add("Price", "Daily Change %", fmt_pct(metrics.get("Daily Change %")*100))
+    add("Price", "1 Month Change %", fmt_pct(metrics.get("1 Month Change %")*100))
+    add("Price", "SMA 50", fmt_price(metrics.get("SMA 50")))
+    add("Price", "SMA 200", fmt_price(metrics.get("SMA 200")))
+    add("Price", "Bullish Alignment", metrics.get("Bullish Alignment"))
 
     # Profitability
-    add("Profitability", "ROE", metrics["Return On Equity"])
-    add("Profitability", "Profit Margin", metrics["Profit Margin"])
-    add("Profitability", "Revenue Growth", metrics["Revenue Growth"])
-    add("Profitability", "Earnings Growth", metrics["Earnings Growth"])
-    add("Profitability", "Free Cash Flow", metrics["Free Cash Flow"])
+    add("Profitability", "ROE", fmt_pct(metrics.get("Return On Equity")))
+    add("Profitability", "Profit Margin", fmt_pct(metrics.get("Profit Margin")*100))
+    add("Profitability", "Revenue Growth", fmt_pct(metrics.get("Revenue Growth")*100))
+    add("Profitability", "Earnings Growth", fmt_pct(metrics.get("Earnings Growth")*100))
+    fcf = metrics.get("Free Cash Flow")
+    add("Profitability", "Free Cash Flow", fmt_price(fcf) if fcf is not None else "N/A"
+    )
 
     # Value
-    add("Value", "Forward PE", metrics["Forward PE"])
-    add("Value", "PEG", metrics["PEG"])
-    add("Value", "Debt To Equity", metrics["Debt To Equity"])
-    add("Value", "Target Price", metrics["Target Price"])
-    add("Value", "Upside %", metrics["Upside %"])
+    add("Value", "Forward PE", fmt_num(metrics.get("Forward PE")))
+    add("Value", "PEG", fmt_num(metrics.get("PEG")))
+    add("Value", "Debt To Equity", fmt_num(metrics.get("Debt To Equity")))
+    add("Value", "Target Price", fmt_price(metrics.get("Target Price")))
+    add("Value", "Upside %", fmt_pct(metrics.get("Upside %")*100))
 
     # Momentum
-    add("Momentum", "RSI", metrics["RSI"])
-    add("Momentum", "MACD", metrics["MACD"])
-    add("Momentum", "MACD Signal", metrics["MACD Signal"])
-    add("Momentum", "MACD Histogram", metrics["MACD Histogram"])
+    add("Momentum", "RSI", fmt_num(metrics.get("RSI")))
+    add("Momentum", "MACD", fmt_num(metrics.get("MACD")))
+    add("Momentum", "MACD Signal", fmt_num(metrics.get("MACD Signal")))
+    add("Momentum", "MACD Histogram", fmt_num(metrics.get("MACD Histogram")))
 
+ 
     # Price chart
+
+    chart_data = history.copy()
+
+    chart_data["SMA 50"] = chart_data["Close"].rolling(50).mean()
+    chart_data["SMA 200"] = chart_data["Close"].rolling(200).mean()
+
     chart_path = folder / f"{ticker}_chart.png"
     try:
-        fig = px.line(history, y="Close", title=f"{ticker} Price History")
+        fig = px.line(
+            chart_data,
+            y=["Close", "SMA 50", "SMA 200"],
+            title=f"{ticker} Price History"
+        )
         fig.write_image(chart_path)
         img = XLImage(str(chart_path))
         img.width = 900
         img.height = 450
-        ws.add_image(img, "H2")
+        ws.add_image(img, "D8")
     except Exception as exc:
         print(f"Chart failed for {ticker}: {exc}")
 
