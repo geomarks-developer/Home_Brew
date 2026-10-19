@@ -68,7 +68,7 @@ def create_starter(path):
     wb = Workbook()
     ws = wb.active
     ws.title = TICKERS_SHEET
-    ws.append(["Stock", "Dividend", "ETF", "S&P 100", "Owned"])
+    ws.append(["Stock", "Dividend", "ETF", "S&P 100", "Profiles"])
     ws.freeze_panes = "A2"
     for cell in ws[1]:
         cell.fill = PatternFill("solid", fgColor="1F4E78")
@@ -79,7 +79,7 @@ def create_starter(path):
 
 
 # ---------------------------------------------------------
-# Read tickers including Owned column
+# Read tickers
 # ---------------------------------------------------------
 
 def read_tickers(path):
@@ -88,7 +88,7 @@ def read_tickers(path):
         raise KeyError('The workbook needs a sheet named "Tickers".')
     ws = wb[TICKERS_SHEET]
     result = {}
-    for name, col in {"stocks": 1, "dividends": 2, "etfs": 3, "sp100": 4, "owned": 5}.items():
+    for name, col in {"stocks": 1, "dividends": 2, "etfs": 3, "sp100": 4, "profiles": 5}.items():
         values = [normalize_ticker(ws.cell(row, col).value) for row in range(2, ws.max_row + 1)]
         result[name] = list(dict.fromkeys(v for v in values if v))
     wb.close()
@@ -817,7 +817,7 @@ def add_methodology_sheet(workbook):
 
     # End Glossary
 # ---------------------------------------------------------
-# One‑page summary tab for owned tickers
+# One‑page summary tab for profiles tickers
 # ---------------------------------------------------------
 import pandas as pd
 
@@ -932,7 +932,7 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
 
 
 # ---------------------------------------------------------
-# Save workbook (now includes Owned summary tabs)
+# Save workbook (now includes profiles summary tabs)
 # ---------------------------------------------------------
 
 def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_rows_raw):
@@ -949,7 +949,7 @@ def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_
     ]
 
     # Remove old summary tabs
-    for ticker in lists["owned"]:
+    for ticker in lists["profiles"]:
         name = f"{ticker} Summary"
         sheets_to_remove.append(name)
 
@@ -971,11 +971,11 @@ def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_
     # Methodology sheet
     add_methodology_sheet(workbook)
 
-    # Owned summary tabs
-    owned = lists["owned"]
+    # profiles summary tabs
+    profiles = lists["profiles"]
     for row in stock_rows_raw:
         ticker = row["Ticker"]
-        if ticker in owned:
+        if ticker in profiles:
             info = cache[ticker]
             history = histories.get(ticker)
             write_summary_tab(workbook, ticker, info, row, history, folder)
@@ -1048,7 +1048,7 @@ def main():
         cache = {}
         fund_cache = {}
 
-    # Raw stock rows (needed for Owned summary tabs)
+    # Raw stock rows (needed for profiles summary tabs)
     stock_rows_raw = stock_rows(lists["stocks"], histories, cache)
 
     frames = {
