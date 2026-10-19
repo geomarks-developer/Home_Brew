@@ -775,44 +775,44 @@ def add_methodology_sheet(workbook):
     # You can paste your existing glossary rows here unchanged.
 
     tests=[
-        ["Stock","PEG",f"PEG < {MAX_PEG}",1,"Yes","PEG valuation test; uses trailing PEG as a fallback."],["Stock","Forward PE",f"Forward PE < {MAX_FORWARD_PE}",1,"Yes","Forward valuation test."],["Stock","ROE",f"ROE > {MIN_ROE:.0%}",1,"Yes","Profitability test."],["Stock","Profit Margin",f"Profit Margin > {MIN_MARGIN:.0%}",1,"Yes","Profitability test."],["Stock","Revenue Growth","Revenue Growth > 0%",1,"Yes","Requires positive growth."],["Stock","Earnings Growth","Earnings Growth > 0%",1,"Yes","Requires positive growth."],["Stock","Debt to Equity",f"Debt to Equity < {MAX_DEBT_EQUITY:g}",1,"Yes","Leverage test."],["Stock","Target Upside",f"Target Upside > {MIN_UPSIDE:.0%}",1,"Yes","Analyst mean target above current price."],["Stock","Above SMA 50","Price > 50-day SMA",1,"No","Score/trend input."],["Stock","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final pass."],["Stock","Golden Cross","SMA 50 > SMA 200",1,"No","Score/trend input."],["Stock / Dividend","RSI",f"{MIN_RSI:g} <= RSI <= {MAX_RSI:g}","0-2","Momentum",f"2 points for RSI 50-{MAX_RSI:g}; 1 for {MIN_RSI:g}-<50; otherwise 0."],["Stock / Dividend","MACD","MACD > Signal","0-1","Momentum","MACD confirmation point."],["Stock","Final Pass","All 8 fundamentals + Above SMA 200 + Momentum >= 2","N/A","Final","Maximum score 14."],["Dividend","Dividend Yield",f"Yield > {MIN_DIVIDEND_YIELD:.1%}",1,"Yes","Minimum income yield."],["Dividend","Payout Ratio",f"Payout < {MAX_PAYOUT:.0%}",1,"Yes","Dividend sustainability test."],["Dividend","Free Cash Flow","FCF > 0",1,"Yes","Requires positive free cash flow."],["Dividend","Debt to Equity",f"Debt to Equity < {MAX_DEBT_EQUITY:g}",1,"Yes","Leverage test."],["Dividend","Above SMA 50","Price > 50-day SMA",1,"No","Score/trend input."],["Dividend","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final pass."],["Dividend","Golden Cross","SMA 50 > SMA 200",1,"No","Score/trend input."],["Dividend","Final Pass","All 4 dividend tests + Above SMA 200 + Momentum >= 2","N/A","Final","Maximum score 10."],["ETF","Expense Ratio",f"Expense Ratio < {MAX_EXPENSE_RATIO:.2%}",1,"Yes","ETF cost test."],["ETF","AUM",f"Total Assets > ${MIN_AUM:,.0f}",1,"Yes","Fund size test."],["ETF","Above SMA 50","Price > 50-day SMA",1,"Yes","Trend requirement."],["ETF","Above SMA 200","Price > 200-day SMA",1,"Yes","Trend requirement."],["ETF","Golden Cross","SMA 50 > SMA 200",1,"Yes","Trend requirement."],["ETF","Final Pass","All 5 ETF tests pass","N/A","Final","Maximum score 5."],["All","1 Month Change",f"Latest price / price {MONTH_LOOKBACK} trading days earlier - 1",0,"No","Heatmap display/color; not a pass/fail test."],["All","Bullish Alignment","Above SMA 50 + Above SMA 200 + Golden Cross",0,"No","Descriptive dashboard/heatmap indicator."],["All","Unavailable Data","Missing metric fails its individual test",0,"Depends","Shown in Failed Tests."]]
-        for r in tests: ws.append(r)
+    ["Stock","PEG",f"PEG < {MAX_PEG}",1,"Yes","PEG valuation test; uses trailing PEG as a fallback."],["Stock","Forward PE",f"Forward PE < {MAX_FORWARD_PE}",1,"Yes","Forward valuation test."],["Stock","ROE",f"ROE > {MIN_ROE:.0%}",1,"Yes","Profitability test."],["Stock","Profit Margin",f"Profit Margin > {MIN_MARGIN:.0%}",1,"Yes","Profitability test."],["Stock","Revenue Growth","Revenue Growth > 0%",1,"Yes","Requires positive growth."],["Stock","Earnings Growth","Earnings Growth > 0%",1,"Yes","Requires positive growth."],["Stock","Debt to Equity",f"Debt to Equity < {MAX_DEBT_EQUITY:g}",1,"Yes","Leverage test."],["Stock","Target Upside",f"Target Upside > {MIN_UPSIDE:.0%}",1,"Yes","Analyst mean target above current price."],["Stock","Above SMA 50","Price > 50-day SMA",1,"No","Score/trend input."],["Stock","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final pass."],["Stock","Golden Cross","SMA 50 > SMA 200",1,"No","Score/trend input."],["Stock / Dividend","RSI",f"{MIN_RSI:g} <= RSI <= {MAX_RSI:g}","0-2","Momentum",f"2 points for RSI 50-{MAX_RSI:g}; 1 for {MIN_RSI:g}-<50; otherwise 0."],["Stock / Dividend","MACD","MACD > Signal","0-1","Momentum","MACD confirmation point."],["Stock","Final Pass","All 8 fundamentals + Above SMA 200 + Momentum >= 2","N/A","Final","Maximum score 14."],["Dividend","Dividend Yield",f"Yield > {MIN_DIVIDEND_YIELD:.1%}",1,"Yes","Minimum income yield."],["Dividend","Payout Ratio",f"Payout < {MAX_PAYOUT:.0%}",1,"Yes","Dividend sustainability test."],["Dividend","Free Cash Flow","FCF > 0",1,"Yes","Requires positive free cash flow."],["Dividend","Debt to Equity",f"Debt to Equity < {MAX_DEBT_EQUITY:g}",1,"Yes","Leverage test."],["Dividend","Above SMA 50","Price > 50-day SMA",1,"No","Score/trend input."],["Dividend","Above SMA 200","Price > 200-day SMA",1,"Yes","Required in final pass."],["Dividend","Golden Cross","SMA 50 > SMA 200",1,"No","Score/trend input."],["Dividend","Final Pass","All 4 dividend tests + Above SMA 200 + Momentum >= 2","N/A","Final","Maximum score 10."],["ETF","Expense Ratio",f"Expense Ratio < {MAX_EXPENSE_RATIO:.2%}",1,"Yes","ETF cost test."],["ETF","AUM",f"Total Assets > ${MIN_AUM:,.0f}",1,"Yes","Fund size test."],["ETF","Above SMA 50","Price > 50-day SMA",1,"Yes","Trend requirement."],["ETF","Above SMA 200","Price > 200-day SMA",1,"Yes","Trend requirement."],["ETF","Golden Cross","SMA 50 > SMA 200",1,"Yes","Trend requirement."],["ETF","Final Pass","All 5 ETF tests pass","N/A","Final","Maximum score 5."],["All","1 Month Change",f"Latest price / price {MONTH_LOOKBACK} trading days earlier - 1",0,"No","Heatmap display/color; not a pass/fail test."],["All","Bullish Alignment","Above SMA 50 + Above SMA 200 + Golden Cross",0,"No","Descriptive dashboard/heatmap indicator."],["All","Unavailable Data","Missing metric fails its individual test",0,"Depends","Shown in Failed Tests."]]
+    for r in tests: ws.append(r)
     
-        glossary_start=ws.max_row+3
-        ws.cell(glossary_start,1,"Indicator Glossary"); ws.cell(glossary_start,1).font=Font(size=16,bold=True,color="FFFFFF"); ws.cell(glossary_start,1).fill=PatternFill("solid",fgColor="375623"); ws.merge_cells(start_row=glossary_start,start_column=1,end_row=glossary_start,end_column=6)
-        gh=glossary_start+1
-        for i,v in enumerate(["Indicator","Full Name","Category","What It Measures","Interpretation in This Workbook","Notes"],1): ws.cell(gh,i,v)
-        glossary=[
-        ["PEG","Price/Earnings-to-Growth Ratio","Valuation","P/E relative to expected earnings growth","Lower values receive preference; must be below configured limit for the stock fundamental pass.","Combines valuation and growth into one ratio."],
-        ["Forward PE","Forward Price-to-Earnings Ratio","Valuation","Share price relative to forecast earnings per share","Must be below configured maximum.","Uses expected rather than trailing earnings."],
-        ["ROE","Return on Equity","Profitability","Profit earned relative to shareholder equity","Higher than the configured minimum passes.","A profitability/efficiency measure."],
-        ["Profit Margin","Net Profit Margin","Profitability","Profit retained from revenue","Must exceed configured minimum.","Positive/higher margins generally indicate stronger profitability."],
-        ["Revenue Growth","Revenue Growth Rate","Growth","Change in company revenue","Positive growth passes.","Measures top-line growth."],
-        ["Earnings Growth","Earnings Growth Rate","Growth","Change in company earnings","Positive growth passes.","Measures bottom-line growth."],
-        ["Debt to Equity","Debt-to-Equity Ratio","Financial Health","Debt relative to shareholder equity","Must remain below configured maximum.","Used as the leverage test."],
-        ["Target Upside","Analyst Target Price Upside","Valuation / Sentiment","Difference between analyst mean target and current price","Positive expected upside passes.","Calculated as Target Price / Current Price - 1."],
-        ["Dividend Yield","Dividend Yield","Income","Annual dividend income relative to share price","Must exceed configured minimum for dividend stocks.","Displayed as a percentage."],
-        ["Payout Ratio","Dividend Payout Ratio","Income / Sustainability","Share of earnings paid as dividends","Must remain below configured maximum.","Used as a dividend sustainability screen."],
-        ["Free Cash Flow","Free Cash Flow (FCF)","Cash Flow","Cash remaining after operating/capital needs","Positive FCF passes the dividend test.","Can support dividends, debt reduction, buybacks, or reinvestment."],
-        ["Expense Ratio","Fund Expense Ratio","ETF Cost","Annual fund operating costs as a percentage of assets","Must be below configured maximum.","Lower is generally cheaper for investors."],
-        ["AUM","Assets Under Management","ETF Size","Total assets held by the fund","Must exceed configured minimum.","Used here as a fund-size screen."],
-        ["SMA 50","50-Day Simple Moving Average","Trend","Average closing price across the latest 50 sessions","Price above SMA 50 indicates positive intermediate trend in this model.","Every closing price receives equal weight."],
-        ["SMA 200","200-Day Simple Moving Average","Trend","Average closing price across the latest 200 sessions","Price above SMA 200 is required for Stock and Dividend passes and ETF passes.","Longer-term trend measure."],
-        ["Golden Cross","50-Day SMA > 200-Day SMA","Trend","Relationship between intermediate and long-term averages","Treated as bullish trend confirmation.","Required for ETF pass; contributes to Stock/Dividend scores."],
-        ["RSI","Relative Strength Index","Momentum","Speed and magnitude of recent price changes on a 0-100 scale",f"{MIN_RSI:g}-{MAX_RSI:g} is accepted; 50-{MAX_RSI:g} receives 2 points and {MIN_RSI:g}-<50 receives 1.","Workbook uses 14 periods."],
-        ["MACD","Moving Average Convergence Divergence","Momentum / Trend","Difference between fast and slow exponential moving averages","One point when MACD is above its signal line.","Workbook uses EMA 12 minus EMA 26."],
-        ["MACD Signal","MACD Signal Line","Momentum","Smoothed MACD used for confirmation","MACD > Signal counts as positive confirmation.","Workbook uses a 9-period EMA of MACD."],
-        ["MACD Histogram","MACD Histogram","Momentum","Difference between MACD and its signal line","Positive values correspond to MACD being above Signal.","Included for diagnostic context."],
-        ["Bullish Alignment","Combined Trend Confirmation","Composite","Price/SMA and SMA/SMA trend alignment","True when price is above both SMAs and SMA 50 is above SMA 200.","Descriptive; final requirements vary by screener."],
-        ["Momentum Score","RSI + MACD Score","Composite","Combined momentum confirmation","Range 0-3; Stock/Dividend final pass requires at least 2.","RSI contributes up to 2 and MACD contributes up to 1."],
-        ["Score %","Normalized Screener Score","Composite","Points earned divided by maximum possible points","Useful for comparing screening strength within the output.","Does not replace the explicit final-pass rules."],
-        ["1 Month Change","Approx. 1-Month Price Change","Performance","Price change over the configured 21-trading-day lookback","Determines one-month heatmap color and tile percentage.","Not used for pass/fail."]]
-        for r in glossary: ws.append(r)
-        for c in ws[4]: c.fill=PatternFill("solid",fgColor="5B9BD5"); c.font=Font(color="FFFFFF",bold=True); c.alignment=Alignment(horizontal="center",wrap_text=True)
-        for c in ws[gh]: c.fill=PatternFill("solid",fgColor="70AD47"); c.font=Font(color="FFFFFF",bold=True); c.alignment=Alignment(horizontal="center",wrap_text=True)
-        for r in ws.iter_rows(min_row=5):
-            for c in r: c.alignment=Alignment(vertical="top",wrap_text=True)
-        for col,width in {"A":20,"B":28,"C":30,"D":48,"E":58,"F":54}.items(): ws.column_dimensions[col].width=width
+    glossary_start=ws.max_row+3
+    ws.cell(glossary_start,1,"Indicator Glossary"); ws.cell(glossary_start,1).font=Font(size=16,bold=True,color="FFFFFF"); ws.cell(glossary_start,1).fill=PatternFill("solid",fgColor="375623"); ws.merge_cells(start_row=glossary_start,start_column=1,end_row=glossary_start,end_column=6)
+    gh=glossary_start+1
+    for i,v in enumerate(["Indicator","Full Name","Category","What It Measures","Interpretation in This Workbook","Notes"],1): ws.cell(gh,i,v)
+    glossary=[
+    ["PEG","Price/Earnings-to-Growth Ratio","Valuation","P/E relative to expected earnings growth","Lower values receive preference; must be below configured limit for the stock fundamental pass.","Combines valuation and growth into one ratio."],
+    ["Forward PE","Forward Price-to-Earnings Ratio","Valuation","Share price relative to forecast earnings per share","Must be below configured maximum.","Uses expected rather than trailing earnings."],
+    ["ROE","Return on Equity","Profitability","Profit earned relative to shareholder equity","Higher than the configured minimum passes.","A profitability/efficiency measure."],
+    ["Profit Margin","Net Profit Margin","Profitability","Profit retained from revenue","Must exceed configured minimum.","Positive/higher margins generally indicate stronger profitability."],
+    ["Revenue Growth","Revenue Growth Rate","Growth","Change in company revenue","Positive growth passes.","Measures top-line growth."],
+    ["Earnings Growth","Earnings Growth Rate","Growth","Change in company earnings","Positive growth passes.","Measures bottom-line growth."],
+    ["Debt to Equity","Debt-to-Equity Ratio","Financial Health","Debt relative to shareholder equity","Must remain below configured maximum.","Used as the leverage test."],
+    ["Target Upside","Analyst Target Price Upside","Valuation / Sentiment","Difference between analyst mean target and current price","Positive expected upside passes.","Calculated as Target Price / Current Price - 1."],
+    ["Dividend Yield","Dividend Yield","Income","Annual dividend income relative to share price","Must exceed configured minimum for dividend stocks.","Displayed as a percentage."],
+    ["Payout Ratio","Dividend Payout Ratio","Income / Sustainability","Share of earnings paid as dividends","Must remain below configured maximum.","Used as a dividend sustainability screen."],
+    ["Free Cash Flow","Free Cash Flow (FCF)","Cash Flow","Cash remaining after operating/capital needs","Positive FCF passes the dividend test.","Can support dividends, debt reduction, buybacks, or reinvestment."],
+    ["Expense Ratio","Fund Expense Ratio","ETF Cost","Annual fund operating costs as a percentage of assets","Must be below configured maximum.","Lower is generally cheaper for investors."],
+    ["AUM","Assets Under Management","ETF Size","Total assets held by the fund","Must exceed configured minimum.","Used here as a fund-size screen."],
+    ["SMA 50","50-Day Simple Moving Average","Trend","Average closing price across the latest 50 sessions","Price above SMA 50 indicates positive intermediate trend in this model.","Every closing price receives equal weight."],
+    ["SMA 200","200-Day Simple Moving Average","Trend","Average closing price across the latest 200 sessions","Price above SMA 200 is required for Stock and Dividend passes and ETF passes.","Longer-term trend measure."],
+    ["Golden Cross","50-Day SMA > 200-Day SMA","Trend","Relationship between intermediate and long-term averages","Treated as bullish trend confirmation.","Required for ETF pass; contributes to Stock/Dividend scores."],
+    ["RSI","Relative Strength Index","Momentum","Speed and magnitude of recent price changes on a 0-100 scale",f"{MIN_RSI:g}-{MAX_RSI:g} is accepted; 50-{MAX_RSI:g} receives 2 points and {MIN_RSI:g}-<50 receives 1.","Workbook uses 14 periods."],
+    ["MACD","Moving Average Convergence Divergence","Momentum / Trend","Difference between fast and slow exponential moving averages","One point when MACD is above its signal line.","Workbook uses EMA 12 minus EMA 26."],
+    ["MACD Signal","MACD Signal Line","Momentum","Smoothed MACD used for confirmation","MACD > Signal counts as positive confirmation.","Workbook uses a 9-period EMA of MACD."],
+    ["MACD Histogram","MACD Histogram","Momentum","Difference between MACD and its signal line","Positive values correspond to MACD being above Signal.","Included for diagnostic context."],
+    ["Bullish Alignment","Combined Trend Confirmation","Composite","Price/SMA and SMA/SMA trend alignment","True when price is above both SMAs and SMA 50 is above SMA 200.","Descriptive; final requirements vary by screener."],
+    ["Momentum Score","RSI + MACD Score","Composite","Combined momentum confirmation","Range 0-3; Stock/Dividend final pass requires at least 2.","RSI contributes up to 2 and MACD contributes up to 1."],
+    ["Score %","Normalized Screener Score","Composite","Points earned divided by maximum possible points","Useful for comparing screening strength within the output.","Does not replace the explicit final-pass rules."],
+    ["1 Month Change","Approx. 1-Month Price Change","Performance","Price change over the configured 21-trading-day lookback","Determines one-month heatmap color and tile percentage.","Not used for pass/fail."]]
+    for r in glossary: ws.append(r)
+    for c in ws[4]: c.fill=PatternFill("solid",fgColor="5B9BD5"); c.font=Font(color="FFFFFF",bold=True); c.alignment=Alignment(horizontal="center",wrap_text=True)
+    for c in ws[gh]: c.fill=PatternFill("solid",fgColor="70AD47"); c.font=Font(color="FFFFFF",bold=True); c.alignment=Alignment(horizontal="center",wrap_text=True)
+    for r in ws.iter_rows(min_row=5):
+        for c in r: c.alignment=Alignment(vertical="top",wrap_text=True)
+    for col,width in {"A":20,"B":28,"C":30,"D":48,"E":58,"F":54}.items(): ws.column_dimensions[col].width=width
 
 
     # End Glossary
@@ -854,9 +854,14 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     ws.merge_cells("A1:F1")
 
     ws.append(["Section", "Metric", "Value"])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
 
     def add(section, metric, value):
         ws.append([section, metric, value])
+
+    current_row = ws.max_row
+    ws.cell(current_row, 1).font = Font(bold=True)
 
     # Profile   
     add("Profile", "Name", info.get("shortName"))
@@ -1013,7 +1018,12 @@ def main():
     fund_cache = {}
 
     CACHE_FILE = Path(__file__).resolve().parent / "screener_cache.pkl"
-    USE_CACHE = True
+
+    #USE_CACHE = True
+    use_cache_input = input(
+    "Use cached Yahoo Finance data? (Y/N): "
+    ).strip().upper()
+    USE_CACHE = use_cache_input == "Y"
 
     print(f"USE_CACHE = {USE_CACHE}")
     print(f"CACHE_FILE = {CACHE_FILE}")
