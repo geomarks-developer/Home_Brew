@@ -106,7 +106,7 @@ def download_history(tickers):
         return {}
     data = yf.download(
         tickers,
-        period="5y",
+        period="1y",
         interval="1d",
         auto_adjust=False,
         actions=False,
@@ -868,6 +868,11 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     for cell in ws[1]:
         cell.font = Font(bold=True)
 
+    # Bold headers in A, B, C
+    ws["A2"].font = Font(bold=True)
+    ws["B2"].font = Font(bold=True)
+    ws["C2"].font = Font(bold=True)
+
     def add(section, metric, value):
         ws.append([section, metric, value])
 
@@ -920,7 +925,7 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
 
  
     # Price chart
-     chart_data = history.copy()
+    chart_data = history.copy()
     chart_data["SMA 50"] = chart_data["Close"].rolling(50).mean()
     chart_data["SMA 200"] = chart_data["Close"].rolling(200).mean()
 
@@ -941,7 +946,7 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
         fig.write_image(chart_path)
         img = XLImage(str(chart_path))
         img.width = 900
-        img.height = 500
+        img.height = 550
         ws.add_image(img, "D2")
     except Exception as exc:
         print(f"Chart failed for {ticker}: {exc}")
@@ -957,9 +962,11 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
         for cell in ws[row_num]:
             cell.fill = fill
 
-        for row in ws.iter_rows():
-            for cell in row:
-                cell.border = thin_border
+        # Apply right border ONLY to Column A
+        right_border = Border(right=Side(style="thin", color="B4B4B4"))
+
+        for row_num in range(2, ws.max_row + 1):
+            ws[f"A{row_num}"].border = right_border
                 
         ws.freeze_panes = "A2"
 
