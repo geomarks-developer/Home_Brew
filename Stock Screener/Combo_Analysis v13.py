@@ -104,7 +104,7 @@ def download_history(tickers):
         return {}
     data = yf.download(
         tickers,
-        period="1y",
+        period="5y",
         interval="1d",
         auto_adjust=False,
         actions=False,
@@ -909,16 +909,32 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
 
  
     # Price chart
+ 
+    #print("HISTORY COLUMNS:")
+    #print(history.columns)
+    print ("Building Profiles")
 
     chart_data = history.copy()
 
     chart_data["SMA 50"] = chart_data["Close"].rolling(50).mean()
     chart_data["SMA 200"] = chart_data["Close"].rolling(200).mean()
 
+    # Keep only the most recent year AFTER calculating SMAs
+    #chart_data = chart_data.tail(252).copy()
+    one_year_ago = pd.Timestamp.today() - pd.DateOffset(years=1)
+    chart_data = chart_data[chart_data.index >= one_year_ago]
+
+    chart_data = chart_data.reset_index()
+
+    #print(chart_data.columns)
+    #print(chart_data.shape)
+
     chart_path = folder / f"{ticker}_chart.png"
+    
     try:
         fig = px.line(
             chart_data,
+            x="Date",
             y=["Close", "SMA 50", "SMA 200"],
             title=f"{ticker} Price History"
         )
