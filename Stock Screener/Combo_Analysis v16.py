@@ -4,17 +4,22 @@ import math
 import time
 from pathlib import Path
 from typing import Any
-
 import pandas as pd
 import plotly.express as px
+import pickle
+from datetime import datetime
 import yfinance as yf
 from openpyxl import Workbook, load_workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-import textwrap
-import pickle
+from openpyxl.styles import PatternFill
+from openpyxl.styles import Border, Side
+from openpyxl.styles import (Alignment,Border,Font,PatternFill,Side)
+from openpyxl.utils import get_column_letter
+import matplotlib.pyplot as plt
+
 
 WORKBOOK_NAME = "Combo_Analysis.xlsx"
 TICKERS_SHEET = "Tickers"
@@ -104,7 +109,7 @@ def download_history(tickers):
         return {}
     data = yf.download(
         tickers,
-        period="5y",
+        period="1y",
         interval="1d",
         auto_adjust=False,
         actions=False,
@@ -233,12 +238,20 @@ def get_info(ticker, cache):
 # ---------------------------------------------------------
 
 def normalized_dividend_values(info):
-    dividend_yield, payout = number(info.get("dividendYield")), number(info.get("payoutRatio"))
-    if dividend_yield is not None and dividend_yield > 1:
+    dividend_yield = number(info.get("dividendYield"))
+    payout = number(info.get("payoutRatio"))
+
+    # yfinance dividendYield is percentage-style
+    # Example: 0.23 means 0.23%, so convert to decimal
+    if dividend_yield is not None:
         dividend_yield /= 100
+
+    # payoutRatio may already be decimal-style
     if payout is not None and payout > 1:
         payout /= 100
+
     return dividend_yield, payout
+
 
 
 # ---------------------------------------------------------
@@ -819,7 +832,6 @@ def add_methodology_sheet(workbook):
 # ---------------------------------------------------------
 # One‑page summary tab for profiles tickers
 # ---------------------------------------------------------
-import pandas as pd
 
 def fmt_pct(value, decimals=1):
     if pd.isna(value):
@@ -837,6 +849,16 @@ def fmt_num(value, decimals=1):
     return f"{value:,.{decimals}f}" 
 
 def write_summary_tab(workbook, ticker, info, metrics, history, folder):
+
+    alt_fill = PatternFill(
+        fill_type="solid",
+        fgColor="DCE6F1"
+    )
+
+    thin_border = Border(
+        bottom=Side(style="thin", color="B4B4B4")
+    )
+
     name = f"{ticker} Summary"
     if name in workbook.sheetnames:
         del workbook[name]
@@ -844,9 +866,9 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     ws = workbook.create_sheet(name)
     ws.sheet_view.showGridLines = False
 
-    ws.column_dimensions["A"].width = 18
-    ws.column_dimensions["B"].width = 22
-    ws.column_dimensions["C"].width = 18
+    ws.column_dimensions["A"].width = 16
+    ws.column_dimensions["B"].width = 24
+    ws.column_dimensions["C"].width = 28
 
     # Title
     ws["A1"] = f"{ticker} — {info.get('shortName') or info.get('longName')}"
@@ -856,6 +878,11 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     ws.append(["Section", "Metric", "Value"])
     for cell in ws[1]:
         cell.font = Font(bold=True)
+
+    # Bold headers in A, B, C
+    ws["A2"].font = Font(bold=True)
+    ws["B2"].font = Font(bold=True)
+    ws["C2"].font = Font(bold=True)
 
     def add(section, metric, value):
         ws.append([section, metric, value])
@@ -868,9 +895,9 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     add("Profile", "Sector", info.get("sector"))
     add("Profile", "Industry", info.get("industry"))
     add("Profile", "Market Cap", fmt_price(info.get("marketCap")))
-    summary = info.get("longBusinessSummary", "N/A")
-    summary = summary.split(".", 1)[0] + "." if summary != "N/A" else summary
-    add("Company", "Business Summary", summary)
+    #summary = info.get("longBusinessSummary", "N/A")
+    #summary = summary.split(".", 1)[0] + "." if summary != "N/A" else summary
+    #add("Company", "Business Summary", summary)
 
     # Price
     add("Price", "Price", fmt_price(metrics.get('Price')))
@@ -909,13 +936,7 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
 
  
     # Price chart
- 
-    #print("HISTORY COLUMNS:")
-    #print(history.columns)
-    print ("Building Profile")
-
     chart_data = history.copy()
-
     chart_data["SMA 50"] = chart_data["Close"].rolling(50).mean()
     chart_data["SMA 200"] = chart_data["Close"].rolling(200).mean()
 
@@ -923,12 +944,7 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
     #chart_data = chart_data.tail(252).copy()
     one_year_ago = pd.Timestamp.today() - pd.DateOffset(years=1)
     chart_data = chart_data[chart_data.index >= one_year_ago]
-
     chart_data = chart_data.reset_index()
-
-    #print(chart_data.columns)
-    #print(chart_data.shape)
-
     chart_path = folder / f"{ticker}_chart.png"
     
     try:
@@ -941,10 +957,29 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
         fig.write_image(chart_path)
         img = XLImage(str(chart_path))
         img.width = 900
-        img.height = 450
-        ws.add_image(img, "D8")
+        img.height = 550
+        ws.add_image(img, "D2")
     except Exception as exc:
         print(f"Chart failed for {ticker}: {exc}")
+
+    #Format Profile
+    for row_num in range(2, ws.max_row + 1):
+
+        if row_num % 2 == 0:
+            fill = alt_fill
+        else:
+            fill = PatternFill(fill_type=None)
+
+        for cell in ws[row_num]:
+            cell.fill = fill
+
+        # Apply right border ONLY to Column A
+        right_border = Border(right=Side(style="thin", color="B4B4B4"))
+
+        for row_num in range(2, ws.max_row + 1):
+            ws[f"A{row_num}"].border = right_border
+                
+        ws.freeze_panes = "A2"
 
 
 # ---------------------------------------------------------
@@ -953,9 +988,11 @@ def write_summary_tab(workbook, ticker, info, metrics, history, folder):
 
 def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_rows_raw):
     # Load existing workbook instead of overwriting it
+    print("Load Workbook Path")
     workbook = load_workbook(workbook_path)
 
     # Remove old screener + heatmap + summary sheets if they exist
+    print("Remove Old Sheets")
     sheets_to_remove = [
         "Stock Screener", "Dividend Screener", "ETF Screener",
         "Stock Heatmap Data", "Dividend Heatmap Data",
@@ -974,10 +1011,12 @@ def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_
             del workbook[sheet]
 
     # Write screener sheets
+    print("Write Screener Sheets")
     for name, frame in frames.items():
         write_dataframe(workbook, name, frame)
 
     # Insert heatmaps
+    print("Insert Heatmaps")
     folder = workbook_path.parent
     html_path = folder / HTML_NAME
 
@@ -985,9 +1024,11 @@ def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_
         insert_map(workbook, map_name, image_path, html_path)
 
     # Methodology sheet
+    print("Add Methodology Sheets")
     add_methodology_sheet(workbook)
 
     # profiles summary tabs
+    print("Write Profiles")
     profiles = lists["profiles"]
     for row in stock_rows_raw:
         ticker = row["Ticker"]
@@ -996,8 +1037,1022 @@ def save_workbook(workbook_path, frames, images, lists, histories, cache, stock_
             history = histories.get(ticker)
             write_summary_tab(workbook, ticker, info, row, history, folder)
 
+
+    # profiles dashboard tab
+    write_dashboard_tab(
+        workbook=workbook,
+        stock_df=frames["Stock Screener"],
+        dividend_df=frames["Dividend Screener"],
+        etf_df=frames["ETF Screener"],
+        history_by_ticker=histories,
+        output_folder=workbook_path.parent,
+    )   
+
+    print("Save Workbook")
     workbook.save(workbook_path)
 
+def write_dashboard_tab(
+    workbook,
+    stock_df,
+    dividend_df,
+    etf_df,
+    history_by_ticker,
+    output_folder,
+    analysis_date=None
+):
+    """
+    Create a Dashboard worksheet as the first tab in the workbook.
+
+    Parameters
+    ----------
+    workbook : openpyxl.Workbook
+        Workbook being created or updated.
+
+    stock_df : pandas.DataFrame
+        Stock screener results.
+
+    dividend_df : pandas.DataFrame
+        Dividend screener results.
+
+    etf_df : pandas.DataFrame
+        ETF screener results.
+
+    history_by_ticker : dict
+        Dictionary containing price history by ticker.
+
+        Expected structure:
+            history_by_ticker["AAPL"] = DataFrame with a Close column
+
+    analysis_date : datetime/date/string, optional
+        Date to display at the top of the dashboard.
+    """
+
+    output_folder = Path(output_folder)
+
+    dashboard_chart_folder = (
+        output_folder / "dashboard_charts"
+    )
+
+    dashboard_chart_folder.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    # =========================================================
+    # Helper functions
+    # =========================================================
+
+    def find_column(df, possible_names):
+        """
+        Return the first matching column from possible_names.
+        Matching is case-insensitive.
+        """
+
+        if df is None or df.empty:
+            return None
+
+        column_lookup = {
+            str(column).strip().lower(): column
+            for column in df.columns
+        }
+
+        for name in possible_names:
+            match = column_lookup.get(str(name).strip().lower())
+
+            if match is not None:
+                return match
+
+        return None
+
+
+    def clean_number(value):
+        """
+        Convert a value to a numeric value where possible.
+        Handles commas and percentage signs.
+        """
+
+        if value is None:
+            return None
+
+        try:
+            if pd.isna(value):
+                return None
+        except TypeError:
+            pass
+
+        if isinstance(value, str):
+            value = (
+                value
+                .replace("$", "")
+                .replace(",", "")
+                .replace("%", "")
+                .strip()
+            )
+
+            if value == "":
+                return None
+
+        try:
+            return float(value)
+
+        except (TypeError, ValueError):
+            return None
+
+    def format_dashboard_value(column_name, value):
+        """
+        Format values for the Dashboard tables.
+        """
+
+        if value is None:
+            return "N/A", "General"
+
+        try:
+            if pd.isna(value):
+                return "N/A", "General"
+        except TypeError:
+            pass
+
+        column_key = (
+            str(column_name)
+            .strip()
+            .lower()
+            .replace("_", " ")
+        )
+
+        numeric_value = clean_number(value)
+
+        if numeric_value is None:
+            return str(value), "General"
+
+        # Scores
+        if "score" in column_key:
+            return numeric_value, "0.0"
+
+        # Currency
+        if any(
+            phrase in column_key
+            for phrase in [
+                "price",
+                "target price",
+                "fair value",
+            ]
+        ):
+            return numeric_value, '$#,##0.00'
+
+        # Upside:
+        # 0.262 = 26.2%
+        if column_key in {
+            "upside %",
+            "upside",
+            "upside percent",
+            "upside percentage",
+            "percent upside",
+        }:
+            return numeric_value, "0.0%"
+
+        # Dividend Yield
+        #
+        # IMPORTANT:
+        # Looking at dividend_rows() in your actual code,
+        # dividendYield is normalized to decimal form.
+        #
+        # Example:
+        # 0.023 = 2.3%
+        if column_key in {
+            "dividend yield",
+            "dividend yield %",
+            "yield",
+            "yield %",
+        }:
+            return numeric_value, "0.00%"
+
+        # Expense Ratio
+        # 0.0008 = 0.08%
+        if column_key in {
+            "expense ratio",
+            "expense ratio %",
+            "annual expense ratio",
+        }:
+            return numeric_value, "0.00%"
+
+        # Returns / changes
+        #
+        # price_metrics() stores these as decimals:
+        # 0.05 = 5.0%
+        if any(
+            phrase in column_key
+            for phrase in [
+                "1 year return",
+                "1y return",
+                "1 month change",
+                "1 week change",
+                "daily change",
+                "performance",
+                "percent increase",
+            ]
+        ):
+            return numeric_value, "0.0%"
+
+        # Ratios
+        if any(
+            phrase in column_key
+            for phrase in [
+                "p/e",
+                "peg",
+                "price/book",
+                "price to book",
+                "ratio",
+            ]
+        ):
+            return numeric_value, "0.00"
+
+        # Whole numbers
+        if numeric_value.is_integer():
+            return int(numeric_value), "#,##0"
+
+        return numeric_value, "#,##0.00"
+
+
+    def prepare_top_x(df):
+        """
+        Return the top x rows using the Score column.
+        """
+
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        result = df.copy()
+
+        score_column = find_column(
+            result,
+            [
+                "Score",
+                "Total Score",
+                "Stock Score",
+                "Dividend Score",
+                "ETF Score"
+            ]
+        )
+
+        if score_column is not None:
+            result["_Dashboard Score"] = pd.to_numeric(
+                result[score_column],
+                errors="coerce"
+            )
+
+            result = result.sort_values(
+                by="_Dashboard Score",
+                ascending=False,
+                na_position="last"
+            )
+
+        return result.head(10).copy()
+
+
+    def get_ticker_column(df):
+        return find_column(
+            df,
+            [
+                "Ticker",
+                "Symbol",
+                "Stock",
+                "ETF"
+            ]
+        )
+
+
+    def get_name_column(df):
+        return find_column(
+            df,
+            [
+                "Company Name",
+                "Company",
+                "ETF Name",
+                "Fund Name",
+                "Name",
+                "Short Name"
+            ]
+        )
+
+
+    def get_history(ticker):
+        """
+        Retrieve price history for a ticker.
+
+        The function tries exact, uppercase, and lowercase keys.
+        """
+
+        if not ticker:
+            return None
+
+        ticker = str(ticker).strip()
+
+        possible_keys = [
+            ticker,
+            ticker.upper(),
+            ticker.lower()
+        ]
+
+        for key in possible_keys:
+            if key in history_by_ticker:
+                return history_by_ticker[key]
+
+        return None
+
+
+    def prepare_performance_data(top_df):
+        """
+        Build a normalized performance DataFrame.
+
+        Each ticker begins at 0%.
+        """
+
+        if top_df is None or top_df.empty:
+            return pd.DataFrame()
+
+        ticker_column = get_ticker_column(top_df)
+
+        if ticker_column is None:
+            return pd.DataFrame()
+
+        performance_series = []
+
+        for ticker in top_df[ticker_column].dropna():
+
+            ticker = str(ticker).strip().upper()
+            history = get_history(ticker)
+
+            if history is None or history.empty:
+                continue
+
+            history = history.copy()
+
+            if "Close" not in history.columns:
+                continue
+
+            close_prices = pd.to_numeric(
+                history["Close"],
+                errors="coerce"
+            ).dropna()
+
+            if close_prices.empty:
+                continue
+
+            if not isinstance(close_prices.index, pd.DatetimeIndex):
+                close_prices.index = pd.to_datetime(
+                    close_prices.index,
+                    errors="coerce"
+                )
+
+            close_prices = close_prices[
+                ~close_prices.index.isna()
+            ]
+
+            if close_prices.empty:
+                continue
+
+            close_prices = close_prices.sort_index()
+
+            latest_date = close_prices.index.max()
+            one_year_ago = latest_date - pd.DateOffset(years=1)
+
+            one_year_prices = close_prices[
+                close_prices.index >= one_year_ago
+            ]
+
+            # Reduce daily history to weekly closing prices.
+            # This produces a cleaner and smaller Excel chart.
+            one_year_prices = one_year_prices.resample("W-FRI").last().dropna()
+
+            if one_year_prices.empty:
+                continue
+
+            starting_price = one_year_prices.iloc[0]
+
+            if starting_price == 0:
+                continue
+
+            normalized_performance = (
+                (one_year_prices / starting_price) - 1
+            ) * 100
+
+            normalized_performance.name = ticker
+            performance_series.append(normalized_performance)
+
+        if not performance_series:
+            return pd.DataFrame()
+
+        performance_df = pd.concat(
+            performance_series,
+            axis=1
+        )
+
+        performance_df = performance_df.sort_index()
+        performance_df = performance_df.ffill()
+
+        return performance_df
+
+    def add_performance_chart_image(
+        performance_df,
+        chart_title,
+        chart_position,
+        image_path
+    ):
+        """
+        Generate a one-year performance chart as a PNG and insert
+        the image into the Dashboard worksheet.
+
+        This avoids native Excel chart XML compatibility problems.
+        """
+
+        if performance_df is None or performance_df.empty:
+            ws[chart_position] = (
+                f"No one-year history available for {chart_title}"
+            )
+            ws[chart_position].font = Font(
+                bold=True,
+                color="9C0006"
+            )
+            return None
+
+        chart_data = performance_df.copy()
+
+        # Ensure a valid datetime index.
+        chart_data.index = pd.to_datetime(
+            chart_data.index,
+            errors="coerce"
+        )
+
+        chart_data = chart_data[
+            ~chart_data.index.isna()
+        ].sort_index()
+
+        # Remove columns containing no usable data.
+        chart_data = chart_data.dropna(
+            axis=1,
+            how="all"
+        )
+
+        if chart_data.empty:
+            ws[chart_position] = (
+                f"No one-year history available for {chart_title}"
+            )
+            ws[chart_position].font = Font(
+                bold=True,
+                color="9C0006"
+            )
+            return None
+
+        image_path = Path(image_path)
+        image_path.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        # Create the chart.
+        fig, ax = plt.subplots(
+            figsize=(8.5, 4.5),
+            dpi=150
+        )
+
+        for ticker in chart_data.columns:
+            series = pd.to_numeric(
+                chart_data[ticker],
+                errors="coerce"
+            ).dropna()
+
+            if series.empty:
+                continue
+
+            ax.plot(
+                series.index,
+                series.values,
+                linewidth=1.5,
+                label=str(ticker)
+            )
+
+        ax.axhline(
+            y=0,
+            color="#7F7F7F",
+            linewidth=0.8,
+            linestyle="--"
+        )
+
+        ax.set_title(
+            chart_title,
+            fontsize=12,
+            fontweight="bold"
+        )
+
+        ax.set_ylabel("Performance")
+        ax.set_xlabel("")
+
+        ax.yaxis.set_major_formatter(
+            lambda value, position: f"{value:.0f}%"
+        )
+
+        ax.tick_params(
+            axis="x",
+            labelrotation=0,
+            labelsize=8
+        )
+
+        ax.tick_params(
+            axis="y",
+            labelsize=8
+        )
+
+        ax.grid(
+            axis="y",
+            color="#D9D9D9",
+            linewidth=0.6,
+            alpha=0.8
+        )
+
+        ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.14),
+            ncol=5,
+            fontsize=7,
+            frameon=False
+        )
+
+        fig.tight_layout()
+
+        fig.savefig(
+            image_path,
+            format="png",
+            dpi=150,
+            bbox_inches="tight",
+            facecolor="white"
+        )
+
+        plt.close(fig)
+
+        # Insert the completed chart image into Excel.
+        chart_image = XLImage(str(image_path))
+
+        chart_image.width = 520
+        chart_image.height = 325
+
+        ws.add_image(
+            chart_image,
+            chart_position
+        )
+
+        return image_path
+
+
+    def write_top_x_table(
+        top_df,
+        title,
+        start_row,
+        start_column,
+        preferred_columns
+    ):
+        """
+        Write a formatted Top x table.
+        """
+
+        table_width = 5
+        end_column = start_column + table_width - 1
+
+        ws.merge_cells(
+            start_row=start_row,
+            start_column=start_column,
+            end_row=start_row,
+            end_column=end_column
+        )
+
+        title_cell = ws.cell(
+            row=start_row,
+            column=start_column,
+            value=title
+        )
+
+        title_cell.fill = dark_blue_fill
+        title_cell.font = white_bold_font
+        title_cell.alignment = center_alignment
+
+        if top_df is None or top_df.empty:
+            ws.cell(
+                row=start_row + 1,
+                column=start_column,
+                value="No qualifying results"
+            )
+
+            return
+
+        ticker_column = get_ticker_column(top_df)
+        name_column = get_name_column(top_df)
+
+        selected_columns = []
+
+        if ticker_column:
+            selected_columns.append(ticker_column)
+
+        if name_column and name_column not in selected_columns:
+            selected_columns.append(name_column)
+
+        for possible_column in preferred_columns:
+            actual_column = find_column(
+                top_df,
+                [possible_column]
+            )
+
+            if (
+                actual_column is not None
+                and actual_column not in selected_columns
+            ):
+                selected_columns.append(actual_column)
+
+        selected_columns = selected_columns[:6]
+
+        header_row = start_row + 1
+
+        headers = ["Rank"] + [
+            str(column)
+            for column in selected_columns
+        ]
+
+        for column_offset, header in enumerate(headers):
+
+            cell = ws.cell(
+                row=header_row,
+                column=start_column + column_offset,
+                value=header
+            )
+
+            cell.fill = medium_blue_fill
+            cell.font = white_bold_font
+            cell.alignment = center_alignment
+            cell.border = thin_border
+
+        for rank, (_, data_row) in enumerate(
+            top_df.iterrows(),
+            start=1
+        ):
+            output_row = header_row + rank
+
+            rank_cell = ws.cell(
+                row=output_row,
+                column=start_column,
+                value=rank
+            )
+
+            rank_cell.alignment = center_alignment
+            rank_cell.border = thin_border
+
+            if rank % 2 == 0:
+                rank_cell.fill = light_blue_fill
+
+            for column_offset, column_name in enumerate(
+                selected_columns,
+                start=1
+            ):
+                value = data_row.get(column_name)
+
+                cleaned_value, number_format = (
+                    format_dashboard_value(
+                        column_name,
+                        value
+                    )
+                )
+
+                cell = ws.cell(
+                    row=output_row,
+                    column=start_column + column_offset,
+                    value=cleaned_value
+                )
+
+                cell.number_format = number_format
+                cell.border = thin_border
+                cell.alignment = left_alignment
+
+                if isinstance(cleaned_value, (int, float)):
+                    cell.alignment = right_alignment
+
+                if rank % 2 == 0:
+                    cell.fill = light_blue_fill
+
+                if column_name == ticker_column:
+                    cell.font = Font(
+                        bold=True,
+                        color="0563C1"
+                    )
+
+                    ticker = str(cleaned_value).strip()
+
+                    if ticker in workbook.sheetnames:
+                        escaped_ticker = ticker.replace(
+                            "'",
+                            "''"
+                        )
+
+                        cell.hyperlink = (
+                            f"#'{escaped_ticker}'!A1"
+                        )
+
+                        cell.style = "Hyperlink"
+
+        total_columns_written = len(headers)
+
+        for column_number in range(
+            start_column,
+            start_column + total_columns_written
+        ):
+            column_letter = get_column_letter(column_number)
+
+            header_value = ws.cell(
+                row=header_row,
+                column=column_number
+            ).value
+
+            if header_value == "Rank":
+                ws.column_dimensions[column_letter].width = 8
+
+            elif header_value in [
+                "Expense Ratio",
+                "Dividend Yield",
+                "Upside %",
+            ]:
+                ws.column_dimensions[column_letter].width = 18
+
+            elif header_value in [
+                ticker_column,
+                "Ticker",
+                "Symbol"
+            ]:
+                ws.column_dimensions[column_letter].width = 12
+
+            elif header_value in [
+                name_column,
+                "Company",
+                "Company Name",
+                "ETF Name",
+                "Fund Name",
+                "Name"
+            ]:
+                ws.column_dimensions[column_letter].width = 24
+
+            else:
+                ws.column_dimensions[column_letter].width = 16
+                ws.column_dimensions["F"].width = 2
+                ws.column_dimensions["L"].width = 2
+
+
+    # =========================================================
+    # Create the Dashboard worksheet
+    # =========================================================
+
+    if "Dashboard" in workbook.sheetnames:
+        old_dashboard = workbook["Dashboard"]
+        workbook.remove(old_dashboard)
+
+    ws = workbook.create_sheet(
+        title="Dashboard",
+        index=0
+    )
+
+    ws.sheet_view.showGridLines = False
+    #ws.freeze_panes = "A4"
+
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_view.zoomScale = 80
+
+
+    # =========================================================
+    # Colors and styles
+    # =========================================================
+
+    dark_blue = "1F4E78"
+    medium_blue = "5B9BD5"
+    light_blue = "D9EAF7"
+    gold = "FFC000"
+    white = "FFFFFF"
+    dark_text = "1F1F1F"
+
+    dark_blue_fill = PatternFill(
+        fill_type="solid",
+        fgColor=dark_blue
+    )
+
+    medium_blue_fill = PatternFill(
+        fill_type="solid",
+        fgColor=medium_blue
+    )
+
+    light_blue_fill = PatternFill(
+        fill_type="solid",
+        fgColor=light_blue
+    )
+
+    gold_fill = PatternFill(
+        fill_type="solid",
+        fgColor=gold
+    )
+
+    white_bold_font = Font(
+        bold=True,
+        color=white
+    )
+
+    thin_gray_side = Side(
+        style="thin",
+        color="B7B7B7"
+    )
+
+    thin_border = Border(
+        left=thin_gray_side,
+        right=thin_gray_side,
+        top=thin_gray_side,
+        bottom=thin_gray_side
+    )
+
+    center_alignment = Alignment(
+        horizontal="center",
+        vertical="center"
+    )
+
+    left_alignment = Alignment(
+        horizontal="left",
+        vertical="center"
+    )
+
+    right_alignment = Alignment(
+        horizontal="right",
+        vertical="center"
+    )
+
+
+    # =========================================================
+    # Prepare Top x data
+    # =========================================================
+
+    top_stocks = prepare_top_x(stock_df)
+    top_dividends = prepare_top_x(dividend_df)
+    top_etfs = prepare_top_x(etf_df)
+
+    stock_performance = prepare_performance_data(top_stocks)
+    dividend_performance = prepare_performance_data(top_dividends)
+    etf_performance = prepare_performance_data(top_etfs)
+
+
+    # =========================================================
+    # Dashboard heading
+    # =========================================================
+
+    ws.merge_cells("A1:Q1")
+
+    ws["A1"] = "MARKET SCREENING DASHBOARD"
+    ws["A1"].font = Font(
+        bold=True,
+        color=white,
+        size=20
+    )
+    ws["A1"].fill = dark_blue_fill
+    ws["A1"].alignment = center_alignment
+
+    ws.row_dimensions[1].height = 32
+
+    if analysis_date is None:
+        analysis_date = datetime.now()
+
+    #ws.merge_cells("A2:F2")
+    #ws["A2"] = f"Analysis Date: {analysis_date:%B %d, %Y}"
+    #ws["A2"].font = Font(
+    #    bold=True,
+    #    color=dark_text
+    #)
+
+    #ws.merge_cells("G2:L2")
+    #ws["G2"] = (
+    #    f"Stocks Displayed: {len(top_stocks)}"
+    #)
+
+    #ws.merge_cells("M2:R2")
+    #ws["M2"] = (
+    #    f"Dividend Stocks Displayed: {len(top_dividends)}"
+    #)
+
+    #ws.merge_cells("S2:X2")
+    #ws["S2"] = (
+    #    f"ETFs Displayed: {len(top_etfs)}"
+    #)
+
+    #for cell_reference in ["A2", "G2", "M2", "S2"]:
+    #    ws[cell_reference].fill = gold_fill
+    #    ws[cell_reference].font = Font(
+    #        bold=True,
+    #        color=dark_text
+    #    )
+    #    ws[cell_reference].alignment = center_alignment
+
+    # =========================================================
+    # Add one-year performance chart images
+    # =========================================================
+
+    add_performance_chart_image(
+        performance_df=stock_performance,
+        chart_title="Top Stocks: 1-Year Performance",
+        chart_position="A3",
+        image_path=(
+            dashboard_chart_folder
+            / "dashboard_top_stocks.png"
+        )
+    )
+
+    add_performance_chart_image(
+        performance_df=dividend_performance,
+        chart_title="Top Dividend Stocks: 1-Year Performance",
+        chart_position="g3",
+        image_path=(
+            dashboard_chart_folder
+            / "dashboard_top_dividends.png"
+        )
+    )
+
+    add_performance_chart_image(
+        performance_df=etf_performance,
+        chart_title="Top ETFs: 1-Year Performance",
+        chart_position="m3",
+        image_path=(
+            dashboard_chart_folder
+            / "dashboard_top_etfs.png"
+        )
+    )
+
+    # =========================================================
+    # Add the Top x tables
+    # =========================================================
+
+    table_start_row = 21
+
+    write_top_x_table(
+        top_stocks,
+        "TOP STOCKS",
+        table_start_row,
+        1,
+        [
+        #    "Score",
+            "Price",
+            "1 Year Return",
+            "1Y Return",
+            "Upside %",
+            "Percent Increase"
+        #    "Failed Tests"
+        ]
+    )
+
+    write_top_x_table(
+        top_dividends,
+        "TOP DIVIDEND STOCKS",
+        table_start_row,
+        7,
+        [
+        #    "Score",
+            "Price",
+            "Dividend Yield",
+            "1 Year Return",
+            "1Y Return"
+        #    "Failed Tests"
+        ]
+    )
+
+    write_top_x_table(
+        top_etfs,
+        "TOP ETFs",
+        table_start_row,
+        13,
+        [
+        #    "Score",
+            "Price",
+            "1 Year Return",
+            "1Y Return",
+            "Expense Ratio",
+        #    "Failed Tests"
+        ]
+    )
+
+    # =========================================================
+    # General dashboard column widths
+    # =========================================================
+
+    for column_number in range(1, 25):
+        column_letter = get_column_letter(column_number)
+
+        if ws.column_dimensions[column_letter].width is None:
+            ws.column_dimensions[column_letter].width = 14
+
+    # =========================================================
+    # Activate Dashboard when workbook opens
+    # =========================================================
+
+    workbook.active = 0
+
+    return ws
 
 
 # ---------------------------------------------------------
@@ -1130,6 +2185,7 @@ def main():
         stock_rows_raw,
     )
 
+    workbook_path = Path(workbook_path)
     print(f"Updated workbook: {workbook_path}")
     print(f"Interactive dashboard: {folder / HTML_NAME}")
 
