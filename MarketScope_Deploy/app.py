@@ -12,6 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
 pages = {
     "Overview": [
         st.Page("pages/summary.py", title="Summary", icon="🏠", default=True),
@@ -23,6 +24,9 @@ pages = {
     ],
     "Market": [
         st.Page("pages/heatmaps.py", title="Market Heatmaps", icon="🗺️"),
+    ],
+    "Sample Portfolio": [
+        st.Page("pages/sample_portfolio.py", title="Sample Portfolio", icon="💼"),
     ],
     "Research": [
         st.Page("pages/methodology.py", title="Methodology", icon="📖"),

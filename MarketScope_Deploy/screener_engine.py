@@ -65,6 +65,530 @@ def normalize_ticker(value):
     return None if not value or value in {"TICKER", "SYMBOL", "NAN", "NONE"} else value
 
 
+import pandas as pd
+
+
+def find_column(df, possible_names):
+    """
+    Return the first matching dataframe column.
+
+    This allows the portfolio function to work with slightly different
+    column names across the stock, dividend, and ETF screeners.
+    """
+    for name in possible_names:
+        if name in df.columns:
+            return name
+
+    return None
+
+def build_sample_portfolio(
+    stock_df,
+    dividend_df,
+    etf_df,
+    portfolio_value=10_000,
+):
+    """
+    Build a diversified sample portfolio containing:
+
+    - 3 stocks
+    - 4 dividend stocks
+    - 3 ETFs
+
+    Portfolio allocation:
+    - 30% stocks
+    - 40% dividend stocks
+    - 30% ETFs
+
+    Holdings within each category are weighted according
+    to their screener score.
+
+    The function attempts to avoid duplicate tickers and
+    minimize sector overlap.
+    """
+
+    stock_count = 3
+    dividend_count = 4
+    etf_count = 3
+
+    selected_rows = []
+    used_tickers = set()
+    used_sectors = set()
+
+    # ---------------------------------------------------------
+    # Prepare candidate DataFrames
+    # ---------------------------------------------------------
+
+    def prepare_candidates(df, investment_type):
+
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        candidates = df.copy()
+
+        ticker_col = find_column(
+            candidates,
+            [
+                "Ticker",
+                "Symbol",
+            ],
+        )
+
+        sector_col = find_column(
+            candidates,
+            [
+                "Sector",
+                "Category",
+                "Fund Category",
+            ],
+        )
+
+        price_col = find_column(
+            candidates,
+            [
+                "Price",
+                "Current Price",
+                "Previous Close",
+            ],
+        )
+
+        score_col = find_column(
+            candidates,
+            [
+                "Score",
+                "Total Score",
+                "Composite Score",
+            ],
+        )
+
+        passes_col = find_column(
+            candidates,
+            [
+                "Passes Screen",
+                "Pass",
+                "Qualified",
+            ],
+        )
+
+        if ticker_col is None:
+            return pd.DataFrame()
+
+        # -----------------------------------------------------
+        # Keep passing candidates when screen result exists
+        # -----------------------------------------------------
+
+        if passes_col is not None:
+
+            pass_values = candidates[passes_col]
+
+            if pass_values.dtype == bool:
+
+                candidates = candidates[
+                    pass_values
+                ]
+
+            else:
+
+                candidates = candidates[
+                    pass_values
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    .isin(
+                        [
+                            "true",
+                            "yes",
+                            "pass",
+                            "passes",
+                            "1",
+                        ]
+                    )
+                ]
+
+        # -----------------------------------------------------
+        # Normalize ticker
+        # -----------------------------------------------------
+
+        candidates["Portfolio Ticker"] = (
+            candidates[ticker_col]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+
+        # -----------------------------------------------------
+        # Sector
+        # -----------------------------------------------------
+
+        if sector_col is not None:
+
+            candidates["Portfolio Sector"] = (
+                candidates[sector_col]
+                .fillna("Unclassified")
+                .astype(str)
+                .str.strip()
+            )
+
+        else:
+
+            candidates["Portfolio Sector"] = "Unclassified"
+
+        # -----------------------------------------------------
+        # Price
+        # -----------------------------------------------------
+
+        if price_col is not None:
+
+            candidates["Portfolio Price"] = pd.to_numeric(
+                candidates[price_col],
+                errors="coerce",
+            )
+
+        else:
+
+            candidates["Portfolio Price"] = pd.NA
+
+        # -----------------------------------------------------
+        # Score
+        # -----------------------------------------------------
+
+        if score_col is not None:
+
+            candidates["Portfolio Score"] = pd.to_numeric(
+                candidates[score_col],
+                errors="coerce",
+            )
+
+        else:
+
+            candidates["Portfolio Score"] = pd.NA
+
+        candidates["Investment Type"] = investment_type
+
+        return candidates
+
+    # ---------------------------------------------------------
+    # Normalize sector names
+    # ---------------------------------------------------------
+
+    def normalized_sector(value):
+
+        value = str(value).strip().lower()
+
+        sector_aliases = {
+            "information technology": "technology",
+            "tech": "technology",
+            "healthcare": "health care",
+            "financial": "financials",
+            "consumer discretionary": "consumer cyclical",
+            "consumer defensive": "consumer staples",
+            "communications": "communication services",
+            "telecommunications": "communication services",
+            "real estate investment trust": "real estate",
+            "reit": "real estate",
+        }
+
+        return sector_aliases.get(
+            value,
+            value,
+        )
+
+    # ---------------------------------------------------------
+    # Add candidate
+    # ---------------------------------------------------------
+
+    def add_candidate(row):
+
+        ticker = row["Portfolio Ticker"]
+        sector = row["Portfolio Sector"]
+
+        selected_rows.append(
+            {
+                "Type": row["Investment Type"],
+                "Ticker": ticker,
+                "Sector": sector,
+                "Score": row["Portfolio Score"],
+                "Price": row["Portfolio Price"],
+            }
+        )
+
+        used_tickers.add(ticker)
+
+        normalized = normalized_sector(sector)
+
+        if normalized not in {
+            "",
+            "unknown",
+            "unclassified",
+            "none",
+            "nan",
+        }:
+            used_sectors.add(normalized)
+
+    # ---------------------------------------------------------
+    # Select candidates
+    # ---------------------------------------------------------
+
+    def select_candidates(
+        candidates,
+        required_count,
+    ):
+
+        selected_count = 0
+
+        if candidates.empty:
+            return
+
+        # -----------------------------------------------------
+        # First pass:
+        # prefer unused sectors
+        # -----------------------------------------------------
+
+        for _, row in candidates.iterrows():
+
+            if selected_count >= required_count:
+                break
+
+            ticker = row["Portfolio Ticker"]
+
+            sector = normalized_sector(
+                row["Portfolio Sector"]
+            )
+
+            if not ticker:
+                continue
+
+            if ticker in used_tickers:
+                continue
+
+            if sector in used_sectors:
+                continue
+
+            add_candidate(row)
+
+            selected_count += 1
+
+        # -----------------------------------------------------
+        # Second pass:
+        # fill remaining positions if unique sectors run out
+        # -----------------------------------------------------
+
+        if selected_count < required_count:
+
+            for _, row in candidates.iterrows():
+
+                if selected_count >= required_count:
+                    break
+
+                ticker = row[
+                    "Portfolio Ticker"
+                ]
+
+                if not ticker:
+                    continue
+
+                if ticker in used_tickers:
+                    continue
+
+                add_candidate(row)
+
+                selected_count += 1
+
+    # ---------------------------------------------------------
+    # Prepare candidates
+    # ---------------------------------------------------------
+
+    stock_candidates = prepare_candidates(
+        stock_df,
+        "Stock",
+    )
+
+    dividend_candidates = prepare_candidates(
+        dividend_df,
+        "Dividend Stock",
+    )
+
+    etf_candidates = prepare_candidates(
+        etf_df,
+        "ETF",
+    )
+
+    # ---------------------------------------------------------
+    # Select holdings
+    # ---------------------------------------------------------
+
+    select_candidates(
+        stock_candidates,
+        stock_count,
+    )
+
+    select_candidates(
+        dividend_candidates,
+        dividend_count,
+    )
+
+    select_candidates(
+        etf_candidates,
+        etf_count,
+    )
+
+    # ---------------------------------------------------------
+    # Build portfolio DataFrame
+    # ---------------------------------------------------------
+
+    portfolio = pd.DataFrame(
+        selected_rows
+    )
+
+    if portfolio.empty:
+        return portfolio
+
+    # ---------------------------------------------------------
+    # Portfolio category allocation
+    # ---------------------------------------------------------
+
+    category_weights = {
+        "Stock": 0.30,
+        "Dividend Stock": 0.40,
+        "ETF": 0.30,
+    }
+
+    portfolio["Target Allocation"] = 0.0
+    portfolio["Target Weight"] = 0.0
+
+    # ---------------------------------------------------------
+    # Score-weight holdings within each category
+    # ---------------------------------------------------------
+
+    for (
+        investment_type,
+        category_weight,
+    ) in category_weights.items():
+
+        mask = (
+            portfolio["Type"]
+            == investment_type
+        )
+
+        category = portfolio.loc[
+            mask
+        ].copy()
+
+        if category.empty:
+            continue
+
+        category_value = (
+            portfolio_value
+            * category_weight
+        )
+
+        scores = pd.to_numeric(
+            category["Score"],
+            errors="coerce",
+        ).fillna(0)
+
+        score_total = scores.sum()
+
+        # -----------------------------------------------------
+        # Weight according to screener score
+        # -----------------------------------------------------
+
+        if score_total > 0:
+
+            relative_weights = (
+                scores / score_total
+            )
+
+        # -----------------------------------------------------
+        # Equal weight fallback
+        # -----------------------------------------------------
+
+        else:
+
+            relative_weights = pd.Series(
+                1 / len(category),
+                index=category.index,
+            )
+
+        portfolio.loc[
+            category.index,
+            "Target Allocation",
+        ] = (
+            relative_weights
+            * category_value
+        )
+
+        portfolio.loc[
+            category.index,
+            "Target Weight",
+        ] = (
+            relative_weights
+            * category_weight
+        )
+
+    # ---------------------------------------------------------
+    # Whole-share calculations
+    # ---------------------------------------------------------
+
+    portfolio["Price"] = pd.to_numeric(
+        portfolio["Price"],
+        errors="coerce",
+    )
+
+    portfolio["Shares"] = (
+        portfolio["Target Allocation"]
+        / portfolio["Price"]
+    ).fillna(0).astype(int)
+
+    portfolio["Invested Amount"] = (
+        portfolio["Shares"]
+        * portfolio["Price"]
+    )
+
+    portfolio["Cash Remaining"] = (
+        portfolio["Target Allocation"]
+        - portfolio["Invested Amount"]
+    )
+
+    portfolio["Actual Weight"] = (
+        portfolio["Invested Amount"]
+        / portfolio_value
+    )
+
+    # ---------------------------------------------------------
+    # Display order
+    # ---------------------------------------------------------
+
+    type_order = pd.CategoricalDtype(
+        categories=[
+            "Stock",
+            "Dividend Stock",
+            "ETF",
+        ],
+        ordered=True,
+    )
+
+    portfolio["Type"] = (
+        portfolio["Type"]
+        .astype(type_order)
+    )
+
+    portfolio = portfolio.sort_values(
+        [
+            "Type",
+            "Score",
+        ],
+        ascending=[
+            True,
+            False,
+        ],
+        na_position="last",
+    ).reset_index(
+        drop=True
+    )
+
+    return portfolio
+
+
 # ---------------------------------------------------------
 # Starter workbook creation
 # ---------------------------------------------------------

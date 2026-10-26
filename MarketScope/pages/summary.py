@@ -238,6 +238,28 @@ top_dividends = top_results(dividend_data, "Dividend Yield")
 top_etfs = top_results(etf_data)
 
 st.title("🏠 MarketScope Summary")
+
+#st.header("Investment Screener Dashboard")
+
+with st.expander("ℹ️ About This Dashboard", expanded=False):
+    st.markdown("""
+    This dashboard helps identify and compare potential investment opportunities across
+    **stocks, dividend stocks, and ETFs** using fundamental, valuation, income, and
+    technical indicators.
+
+    **What you'll find in the dashboard:**
+
+    - 📈 **Stock Screener** – Fundamental, valuation, growth, and technical analysis
+    - 💰 **Dividend Screener** – Dividend yield, payout, valuation, and quality analysis
+    - 📊 **ETF Screener** – ETF performance, expenses, yield, and other fund metrics
+    - 🔥 **Heatmaps** – Visual comparison of stocks, dividend stocks, ETFs, and sectors
+    - 📉 **Technical Analysis** – Moving averages, RSI, MACD, and momentum indicators
+    - 🏆 **Scoring & Ranking** – Combined screening scores for comparing candidates
+
+    This dashboard is intended for **research and screening purposes only** and should
+    not be considered investment advice.
+    """)
+
 st.caption("High-level view of stock, dividend, and ETF screening results")
 
 stock_passes = int(stocks.get("Passes Screen", pd.Series(dtype=bool)).fillna(False).sum())
