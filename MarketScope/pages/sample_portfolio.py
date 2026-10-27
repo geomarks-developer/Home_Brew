@@ -286,6 +286,34 @@ st.divider()
 
 st.subheader("Portfolio Allocation")
 
+
+# ---------------------------------------------------------
+# Allocation charts
+# ---------------------------------------------------------
+
+st.divider()
+
+st.subheader("Portfolio Allocation")
+
+
+# ---------------------------------------------------------
+# Shared chart colors
+# ---------------------------------------------------------
+
+ticker_colors = {
+    ticker: px.colors.qualitative.Plotly[index % len(px.colors.qualitative.Plotly)]
+    for index, ticker in enumerate(portfolio["Ticker"].astype(str))
+}
+
+portfolio_chart_data = portfolio.copy()
+
+portfolio_chart_data["Chart Color"] = (
+    portfolio_chart_data["Ticker"]
+    .astype(str)
+    .map(ticker_colors)
+)
+
+
 chart1, chart2 = st.columns(2)
 
 
@@ -296,10 +324,11 @@ chart1, chart2 = st.columns(2)
 with chart1:
 
     allocation_chart = px.pie(
-        portfolio,
+        portfolio_chart_data,
         names="Ticker",
         values="Invested Amount",
-        color="Type",
+        color="Ticker",
+        color_discrete_map=ticker_colors,
         hole=0.45,
         title="Allocation by Holding",
     )
@@ -309,8 +338,8 @@ with chart1:
         textinfo="label+percent",
         hovertemplate=(
             "<b>%{label}</b><br>"
-            "Allocation: $%{value:,.2f}<br>"
-            "Weight: %{percent}"
+            "Invested: $%{value:,.2f}<br>"
+            "Portfolio: %{percent}"
             "<extra></extra>"
         ),
     )
@@ -323,7 +352,7 @@ with chart1:
             t=60,
             b=20,
         ),
-        legend_title_text="Investment Type",
+        legend_title_text="Ticker",
     )
 
     st.plotly_chart(
@@ -344,25 +373,33 @@ with chart1:
 with chart2:
 
     sector_totals = (
-        portfolio.groupby(
-            "Sector",
-            as_index=False,
-            observed=True,
-        )["Invested Amount"]
-        .sum()
+        portfolio_chart_data[
+            [
+                "Ticker",
+                "Sector",
+                "Invested Amount",
+            ]
+        ]
         .sort_values(
             "Invested Amount",
             ascending=False,
         )
+        .reset_index(drop=True)
     )
 
     sector_chart = px.bar(
         sector_totals,
         x="Sector",
         y="Invested Amount",
+        color="Ticker",
+        color_discrete_map=ticker_colors,
         title="Allocation by Sector",
         text_auto=".2s",
-        color="Sector",
+        hover_data={
+            "Ticker": True,
+            "Sector": True,
+            "Invested Amount": ":$,.2f",
+        },
     )
 
     sector_chart.update_layout(
@@ -393,7 +430,6 @@ with chart2:
             "displaylogo": False,
         },
     )
-
 
 # ---------------------------------------------------------
 # Allocation by investment type
