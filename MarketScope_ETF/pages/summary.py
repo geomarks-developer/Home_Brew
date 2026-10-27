@@ -276,6 +276,7 @@ else:
 
     display_columns = [
         "Ticker",
+        "Name",
         "Categories",
         "ETF Score",
         "Trend",
@@ -537,6 +538,7 @@ if "Momentum Score" in etf_df.columns:
 
     momentum_columns = [
         "Ticker",
+        "Name",
         "Categories",
         "Momentum Score",
         "Trend",

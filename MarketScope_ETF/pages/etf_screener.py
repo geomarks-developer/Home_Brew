@@ -842,6 +842,7 @@ if not filtered_df.empty:
 
     snapshot_columns = [
         "Ticker",
+        "Name",
         "ETF Score",
         "Trend",
         "Momentum Score",

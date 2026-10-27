@@ -220,6 +220,9 @@ def create_heatmap(
         ],
         custom_data=[
             performance_column,
+            "Name"
+            if "Name" in chart_data.columns
+            else "Ticker",
             "ETF Score"
             if "ETF Score" in chart_data.columns
             else performance_column,
@@ -238,6 +241,8 @@ def create_heatmap(
         ),
         hovertemplate=(
             "<b>%{label}</b>"
+            "<br>"
+            "%{customdata[1]}"
             "<br>"
             f"{title}: "
             "%{customdata[0]:+.2f}%"
@@ -671,7 +676,7 @@ with leader_col:
 
     leader_columns = [
         "Ticker",
-        "Categories",
+        "Name",
         performance_column,
         "ETF Score",
         "Trend",
@@ -724,7 +729,7 @@ with laggard_col:
 
     laggard_columns = [
         "Ticker",
-        "Categories",
+        "Name",
         performance_column,
         "ETF Score",
         "Trend",

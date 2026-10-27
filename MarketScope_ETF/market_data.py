@@ -182,6 +182,88 @@ def build_empty_fund_data(tickers) -> dict[str, dict[str, Any]]:
         for ticker in normalize_tickers(tickers)
     }
 
+def download_fund_data(
+    tickers,
+    progress_callback=None,
+) -> dict[str, dict[str, Any]]:
+    """
+    Download shared ETF metadata from Yahoo Finance.
+
+    Falls back to the ticker when metadata is unavailable.
+    """
+    clean_tickers = normalize_tickers(tickers)
+    fund_data = build_empty_fund_data(clean_tickers)
+
+    total = len(clean_tickers)
+
+    for index, ticker in enumerate(clean_tickers, start=1):
+        try:
+            etf = yf.Ticker(ticker)
+            info = etf.info or {}
+
+            long_name = info.get("longName")
+            short_name = info.get("shortName")
+
+            fund_name = (
+                long_name
+                or short_name
+                or ticker
+            )
+
+            expense_ratio = info.get("annualReportExpenseRatio")
+
+            if expense_ratio is None:
+                expense_ratio = info.get("netExpenseRatio")
+
+            # Yahoo may return yields and expense ratios as decimals.
+            dividend_yield = info.get("yield")
+
+            if dividend_yield is None:
+                dividend_yield = info.get("dividendYield")
+
+            if (
+                dividend_yield is not None
+                and dividend_yield <= 1
+            ):
+                dividend_yield *= 100
+
+            if (
+                expense_ratio is not None
+                and expense_ratio <= 1
+            ):
+                expense_ratio *= 100
+
+            total_assets = (
+                info.get("totalAssets")
+                or info.get("netAssets")
+            )
+
+            fund_data[ticker] = {
+                "name": fund_name,
+                "expense_ratio": expense_ratio,
+                "dividend_yield": dividend_yield,
+                "total_assets": total_assets,
+            }
+
+        except Exception:
+            # Preserve the default record created above.
+            pass
+
+        if total:
+            metadata_progress = (
+                0.56
+                + (index / total) * 0.12
+            )
+
+            report_progress(
+                progress_callback,
+
+                f"Loading ETF details: {ticker} "
+                f"({index} of {total})...",
+                metadata_progress,
+            )
+
+    return fund_data
 
 def build_sector_dataframe(etf_df: pd.DataFrame) -> pd.DataFrame:
     if etf_df is None or etf_df.empty or "Ticker" not in etf_df.columns:
@@ -213,9 +295,32 @@ def build_market_data(progress_callback=None) -> dict[str, Any]:
         report_progress(progress_callback, f"Retrying {len(missing)} missing ETFs...", 0.52)
         price_data = retry_missing_tickers(price_data, missing)
 
-    available = find_available_tickers(price_data, all_tickers)
-    final_missing = find_missing_tickers(price_data, all_tickers)
-    fund_data = build_empty_fund_data(all_tickers)
+    available = find_available_tickers(
+        price_data,
+        all_tickers,
+    )
+
+    final_missing = find_missing_tickers(
+        price_data,
+        all_tickers,
+    )
+
+    report_progress(
+        progress_callback,
+        "Loading ETF names and fund details...",
+        0.56,
+    )
+
+    fund_data = download_fund_data(
+        all_tickers,
+        progress_callback=progress_callback,
+    )
+
+    report_progress(
+        progress_callback,
+        "Calculating ETF scores and indicators...",
+        0.70,
+    )
 
     report_progress(progress_callback, "Calculating ETF scores and indicators...", 0.70)
     etf_df = analyze_etf_universe(

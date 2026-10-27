@@ -447,9 +447,9 @@ if all(
             rotation_df,
             x="Return 3M %",
             y="Return 1M %",
-            text="Ticker",
+            text="Sector",
             color="Rotation",
-            hover_name="Sector",
+            hover_name="Ticker",
             hover_data={
                 "Sector Score": ":.2f",
                 "Return 3M %": ":.2f",
