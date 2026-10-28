@@ -41,7 +41,7 @@ st.sidebar.divider()
 
 refresh_all = st.sidebar.button(
     "🔄 Refresh All Market Data",
-    type="primary",
+    type="secondary",
      width="stretch",
 )
 

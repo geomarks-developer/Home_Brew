@@ -639,7 +639,7 @@ def download_history(tickers):
         actions=False,
         group_by="ticker",
         threads=True,
-        progress=False,
+        progress=True,
     )
     if len(tickers) == 1:
         frame = data.dropna(how="all")
