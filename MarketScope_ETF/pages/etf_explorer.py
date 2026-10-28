@@ -758,8 +758,8 @@ with fund1:
         format_number(
             etf.get(
                 "Expense Ratio %"
-            ),
-            decimals=3,
+            )/100,
+            decimals=2,
             suffix="%",
         ),
     )

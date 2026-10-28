@@ -980,7 +980,7 @@ for ticker in selected_etfs:
                 safe_number(
                     row.get(
                         "Expense Ratio %"
-                    )
+                    )/100
                 ),
 
             "Dividend Yield":
@@ -1013,7 +1013,7 @@ st.dataframe(
         "Expense Ratio":
             st.column_config.NumberColumn(
                 "Expense Ratio",
-                format="%.3f%%",
+                format="%.2f%%",
             ),
 
         "Dividend Yield":
