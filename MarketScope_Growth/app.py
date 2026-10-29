@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import streamlit as st
+
+
+# ---------------------------------------------------------
+# Page configuration
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="MarketScope Growth",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+# ---------------------------------------------------------
+# Application title
+# ---------------------------------------------------------
+st.title("📈 MarketScope Growth")
+st.caption(
+    "Growth-stock screening, market analysis, stock research, "
+    "portfolio construction, and risk analysis."
+)
+
+
+# ---------------------------------------------------------
+# Sidebar branding
+# ---------------------------------------------------------
+with st.sidebar:
+    st.markdown("## 📈 MarketScope Growth")
+    st.caption("Growth-stock research and portfolio analysis")
+    st.markdown("---")
+
+
+# ---------------------------------------------------------
+# Navigation
+# ---------------------------------------------------------
+pages = {
+    "Market Analysis": [
+        st.Page(
+            "pages/summary.py",
+            title="Summary",
+            icon="📊",
+            default=True,
+        ),
+        st.Page(
+            "pages/market_overview.py",
+            title="Market Overview",
+            icon="🌐",
+        ),
+        st.Page(
+            "pages/growth_screener.py",
+            title="Growth Screener",
+            icon="🚀",
+        ),
+        st.Page(
+            "pages/sectors.py",
+            title="Sectors",
+            icon="🧩",
+        ),
+        st.Page(
+            "pages/market_calendar.py",
+            title="Market Calendar",
+            icon="📅",
+        ),
+    ],
+    "Stock Research": [
+        st.Page(
+            "pages/stock_detail.py",
+            title="Stock Detail",
+            icon="🔎",
+        ),
+        st.Page(
+            "pages/compare_stocks.py",
+            title="Compare Stocks",
+            icon="⚖️",
+        ),
+        st.Page(
+            "pages/watchlist.py",
+            title="Watchlist",
+            icon="⭐",
+        ),
+    ],
+    "Portfolio & Risk": [
+        st.Page(
+            "pages/portfolio_builder.py",
+            title="Portfolio Builder",
+            icon="🧺",
+        ),
+        st.Page(
+            "pages/risk_dashboard.py",
+            title="Risk Dashboard",
+            icon="⚠️",
+        ),
+    ],
+    "Information": [
+        st.Page(
+            "pages/methodology.py",
+            title="Methodology",
+            icon="🧮",
+        ),
+        st.Page(
+            "pages/about.py",
+            title="About",
+            icon="ℹ️",
+        ),
+    ],
+}
+
+navigation = st.navigation(pages)
+navigation.run()
