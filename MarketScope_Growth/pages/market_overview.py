@@ -37,8 +37,8 @@ def score_config() -> dict:
         "Price": st.column_config.NumberColumn("Price", format="$%.2f"),
         "Revenue Growth": st.column_config.NumberColumn("Revenue Growth", format="%.1%%"),
         "Forward EPS Growth": st.column_config.NumberColumn("Forward EPS Growth", format="%.1%%"),
-        "6M Return": st.column_config.NumberColumn("6M Return", format="%.1%%"),
-        "12M Return": st.column_config.NumberColumn("12M Return", format="%.1%%"),
+        "6M Return": st.column_config.NumberColumn("6M Return", format="percent"),
+        "12M Return": st.column_config.NumberColumn("12M Return", format="percent"),
     }
     for col in SCORES:
         cfg[col] = st.column_config.ProgressColumn(

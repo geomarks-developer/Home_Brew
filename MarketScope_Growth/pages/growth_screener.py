@@ -150,7 +150,7 @@ def column_configuration() -> dict:
     }
 
     for column in percent_columns:
-        config[column] = st.column_config.NumberColumn(column, format="%.1%%")
+        config[column] = st.column_config.NumberColumn(column, format="percent")
 
     for column, label in (
         ("Growth Score", "Growth"),
@@ -434,47 +434,134 @@ def show() -> None:
     # -----------------------------------------------------
     # Visual results
     # -----------------------------------------------------
-    chart_data = filtered.dropna(subset=["Growth Score", "Overall Score"]).copy()
+    chart_data = filtered.dropna(
+        subset=["Growth Score", "Overall Score"]
+    ).copy()
+
     if not chart_data.empty:
         st.subheader("Growth vs. Overall Score")
 
-        hover_fields = [
-            column for column in (
-                "Company",
-                "Sector",
-                "Revenue Growth",
-                "Earnings Growth",
-                "Forward PE",
-                "PEG",
-                "Rating",
+        # -------------------------------------------------
+        # Display-only fields for hover
+        # -------------------------------------------------
+        if "Revenue Growth" in chart_data.columns:
+            chart_data["Revenue Growth %"] = (
+                pd.to_numeric(
+                    chart_data["Revenue Growth"],
+                    errors="coerce",
+                )
+                * 100
             )
-            if column in chart_data.columns
-        ]
 
+        if "Earnings Growth" in chart_data.columns:
+            chart_data["Earnings Growth %"] = (
+                pd.to_numeric(
+                    chart_data["Earnings Growth"],
+                    errors="coerce",
+                )
+                * 100
+            )
+
+        # -------------------------------------------------
+        # Hover configuration
+        # -------------------------------------------------
+        hover_data = {}
+
+        if "Company" in chart_data.columns:
+            hover_data["Company"] = True
+
+        if "Sector" in chart_data.columns:
+            hover_data["Sector"] = True
+
+        if "Revenue Growth %" in chart_data.columns:
+            hover_data["Revenue Growth %"] = ":.1f"
+
+        if "Earnings Growth %" in chart_data.columns:
+            hover_data["Earnings Growth %"] = ":.1f"
+
+        if "Forward PE" in chart_data.columns:
+            hover_data["Forward PE"] = ":.1f"
+
+        if "PEG" in chart_data.columns:
+            hover_data["PEG"] = ":.2f"
+
+        if "Rating" in chart_data.columns:
+            hover_data["Rating"] = True
+
+        # -------------------------------------------------
+        # Scatter configuration
+        # -------------------------------------------------
         scatter_args = {
             "data_frame": chart_data,
             "x": "Growth Score",
             "y": "Overall Score",
-            "color": "Sector" if "Sector" in chart_data.columns else None,
+            "color": (
+                "Sector"
+                if "Sector" in chart_data.columns
+                else None
+            ),
             "color_discrete_map": SECTOR_COLORS,
-            "hover_name": "Ticker" if "Ticker" in chart_data.columns else None,
-            "hover_data": hover_fields,
+            "hover_name": (
+                "Ticker"
+                if "Ticker" in chart_data.columns
+                else None
+            ),
         }
+
+        # -------------------------------------------------
+        # Market cap controls bubble size and hover display
+        # -------------------------------------------------
         if "Market Cap" in chart_data.columns:
-            positive_caps = numeric_series(chart_data, "Market Cap").clip(lower=1)
+            positive_caps = numeric_series(
+                chart_data,
+                "Market Cap",
+            ).clip(lower=1)
+
             chart_data["Chart Market Cap"] = positive_caps
+            chart_data["Market Cap ($B)"] = (
+                positive_caps / 1_000_000_000
+            )
+
             scatter_args["size"] = "Chart Market Cap"
             scatter_args["size_max"] = 40
 
+            hover_data["Market Cap ($B)"] = ":$.1f"
+
+            # Hide raw bubble-size field from hover
+            hover_data["Chart Market Cap"] = False
+
+        scatter_args["hover_data"] = hover_data
+
+        # -------------------------------------------------
+        # Build chart
+        # -------------------------------------------------
         figure = px.scatter(**scatter_args)
-        figure.update_xaxes(range=[0, 100], title="Growth Score")
-        figure.update_yaxes(range=[0, 100], title="Overall Score")
+
+        figure.update_xaxes(
+            range=[0, 100],
+            title="Growth Score",
+        )
+
+        figure.update_yaxes(
+            range=[0, 100],
+            title="Overall Score",
+        )
+
         figure.update_layout(
             height=560,
-            margin=dict(l=10, r=10, t=20, b=10),
+            margin=dict(
+                l=10,
+                r=10,
+                t=20,
+                b=10,
+            ),
             legend_title="Sector",
         )
-        st.plotly_chart(figure, use_container_width=True)
+
+        st.plotly_chart(
+            figure,
+            use_container_width=True,
+        )
 
     st.caption(
         "Scores are quantitative research tools. Missing metrics are excluded "

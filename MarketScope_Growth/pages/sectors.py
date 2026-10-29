@@ -87,14 +87,23 @@ def build_sector_summary(data: pd.DataFrame) -> pd.DataFrame:
 
 def sector_table_config() -> dict:
     """Return Streamlit formatting for the sector summary table."""
+
     config = {
-        "Rank": st.column_config.NumberColumn("Rank", format="%d"),
-        "Stocks": st.column_config.NumberColumn("Stocks", format="%d"),
+        "Rank": st.column_config.NumberColumn(
+            "Rank",
+            format="%d",
+        ),
+        "Stocks": st.column_config.NumberColumn(
+            "Stocks",
+            format="%d",
+        ),
         "Median Market Cap": st.column_config.NumberColumn(
-            "Median Market Cap", format="$%.0f"
+            "Median Market Cap",
+            format="compact",
         ),
     }
 
+    # Score columns
     for column in SCORE_COLUMNS:
         config[column] = st.column_config.ProgressColumn(
             column.replace(" Score", ""),
@@ -103,6 +112,7 @@ def sector_table_config() -> dict:
             format="%.1f",
         )
 
+    # Decimal values displayed as percentages
     for column in (
         "Revenue Growth",
         "Earnings Growth",
@@ -110,7 +120,10 @@ def sector_table_config() -> dict:
         "6M Return",
         "12M Return",
     ):
-        config[column] = st.column_config.NumberColumn(column, format="%.1%%")
+        config[column] = st.column_config.NumberColumn(
+            column,
+            format="percent",
+        )
 
     return config
 
