@@ -1,4 +1,5 @@
 from __future__ import annotations
+from market_data import cache_age_hours, load_market_data
 
 import streamlit as st
 
@@ -27,10 +28,10 @@ st.caption(
 # ---------------------------------------------------------
 # Sidebar branding
 # ---------------------------------------------------------
-with st.sidebar:
-    st.markdown("## 📈 MarketScope Growth")
-    st.caption("Growth-stock research and portfolio analysis")
-    st.markdown("---")
+#with st.sidebar:
+#    st.markdown("## 📈 MarketScope Growth")
+#    st.caption("Growth-stock research and portfolio analysis")
+#    st.markdown("---")
 
 
 # ---------------------------------------------------------
@@ -107,6 +108,42 @@ pages = {
         ),
     ],
 }
+
+
+with st.sidebar:
+    st.markdown("## 📈 MarketScope Growth")
+    st.caption("Growth-stock research and portfolio analysis")
+    st.markdown("---")
+
+    st.markdown("### Growth Dashboard")
+
+    refresh = st.button(
+        "🔄 Refresh Market Data",
+        type="secondary",
+        use_container_width=True,
+    )
+
+    if refresh:
+        st.cache_data.clear()
+
+        with st.spinner("Refreshing MarketScope Growth data..."):
+            load_market_data(force_refresh=True)
+
+        st.rerun()
+
+    age = cache_age_hours()
+
+    if age is not None:
+        age_text = (
+            f"{age * 60:.0f} minutes"
+            if age < 1
+            else f"{age:.1f} hours"
+        )
+
+        st.caption(f"Data cache age: {age_text}")
+
+    st.markdown("---")
+
 
 navigation = st.navigation(pages)
 navigation.run()

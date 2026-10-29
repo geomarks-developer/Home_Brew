@@ -3,7 +3,7 @@ import plotly.express as px
 import streamlit as st
 
 from config import DEFAULT_TOP_N, SECTOR_COLORS
-from market_data import cache_age_hours, load_market_data
+from market_data import load_market_data
 
 
 def score_color(score):
@@ -40,20 +40,23 @@ def show():
         "MarketScope Growth evaluates companies across Growth, Quality, Valuation, and Momentum."
     )
 
-    with st.sidebar:
-        st.markdown("### Growth Dashboard")
-        refresh = st.button("🔄 Refresh Market Data", type="secondary", use_container_width=True)
-        if refresh:
-            st.cache_data.clear()
-            with st.spinner("Refreshing MarketScope Growth data..."):
-                load_market_data(force_refresh=True)
-            st.rerun()
+#    with st.sidebar:
+#        st.markdown("### Growth Dashboard")
+#        refresh = st.button("🔄 Refresh Market Data", type="secondary", use_container_width=True)
+#        if refresh:
+#            st.cache_data.clear()
+#            with st.spinner("Refreshing MarketScope Growth data..."):
+#                load_market_data(force_refresh=True)
+#            st.rerun()
 
-        age = cache_age_hours()
-        if age is not None:
-            st.caption(
-                f"Data cache age: {age * 60:.0f} minutes" if age < 1 else f"Data cache age: {age:.1f} hours"
-            )
+#        age = cache_age_hours()
+#        if age is not None:
+#            st.caption(
+#                f"Data cache age: {age * 60:.0f} minutes" if age < 1 else f"Data cache age: {age:.1f} hours"
+#            )
+    # -----------------------------------------------------
+    # Load data
+    # -----------------------------------------------------
 
     try:
         with st.spinner("Loading MarketScope Growth..."):
@@ -66,6 +69,11 @@ def show():
     if data is None or data.empty:
         st.warning("No growth-stock data is currently available.")
         return
+
+    
+    # -----------------------------------------------------
+    # Summary statistics
+    # -----------------------------------------------------
 
     overall_average = safe_mean(data, "Overall Score")
     growth_average = safe_mean(data, "Growth Score")
