@@ -37,6 +37,40 @@ def normalize_yield(value: object) -> float:
 
     return value
 
+def calculate_trailing_yield(
+    security: yf.Ticker,
+    price: float,
+) -> float:
+    if not np.isfinite(price) or price <= 0:
+        return np.nan
+
+    try:
+        dividends = security.dividends
+
+        if dividends is None or dividends.empty:
+            return np.nan
+
+        dividends = pd.to_numeric(
+            dividends,
+            errors="coerce",
+        ).dropna()
+
+        if dividends.empty:
+            return np.nan
+
+        cutoff = dividends.index.max() - pd.Timedelta(days=365)
+        annual_dividends = dividends[
+            dividends.index > cutoff
+        ].sum()
+
+        if annual_dividends <= 0:
+            return np.nan
+
+        return float(annual_dividends / price)
+
+    except Exception:
+        return np.nan
+    
 def linear(value: float, low: float, high: float) -> float:
     if not np.isfinite(value):
         return np.nan
@@ -85,7 +119,14 @@ def expense_ratio_from_funds_data(security: yf.Ticker) -> float:
     return np.nan
 
 
-def etf_metrics(info: dict, history: pd.DataFrame, expense_ratio: float) -> dict[str, float]:
+def etf_metrics(
+    security: yf.Ticker,
+    info: dict,
+    history: pd.DataFrame,
+    expense_ratio: float,
+    price: float,
+) -> dict[str, float]:
+    
     closes = pd.Series(dtype=float)
     if history is not None and not history.empty and "Close" in history.columns:
         closes = pd.to_numeric(history["Close"], errors="coerce").dropna()
@@ -97,8 +138,7 @@ def etf_metrics(info: dict, history: pd.DataFrame, expense_ratio: float) -> dict
 
     daily = closes.pct_change().dropna()
     volatility = float(daily.std()*np.sqrt(252)) if len(daily) > 20 else np.nan
-    dividend_yield = normalize_yield(info.get("dividendYield")
-    )
+    dividend_yield = calculate_trailing_yield(security,price,)
 
     performance = mean_available([
         linear(ret_3m, -0.12, 0.18),
@@ -138,14 +178,31 @@ def load_etf_data(tickers: tuple[str, ...]) -> pd.DataFrame:
             security = yf.Ticker(ticker)
             info = security.info or {}
             history = security.history(period="1y", auto_adjust=True)
-            expense = expense_ratio_from_funds_data(security)
-            metrics = etf_metrics(info, history, expense)
 
             price = np.nan
-            if history is not None and not history.empty and "Close" in history.columns:
-                closes = pd.to_numeric(history["Close"], errors="coerce").dropna()
+
+            if (
+                history is not None
+                and not history.empty
+                and "Close" in history.columns
+            ):
+                closes = pd.to_numeric(
+                    history["Close"],
+                    errors="coerce",
+                ).dropna()
+
                 if not closes.empty:
                     price = float(closes.iloc[-1])
+
+            expense = expense_ratio_from_funds_data(security)
+
+            metrics = etf_metrics(
+                security,
+                info,
+                history,
+                expense,
+                price,
+            )
 
             rows.append({
                 "Ticker": ticker,
