@@ -17,11 +17,7 @@ st.markdown(
 [data-testid="collapsedControl"] {display: none;}
 .block-container {
     max-width: 520px;
-<<<<<<< HEAD
-    padding-top: 1.1rem;
-=======
-    padding-top: 3rem;
->>>>>>> 697fedb (Heading spacing)
+    padding-top: 2.5rem;
     padding-left: 1rem;
     padding-right: 1rem;
     padding-bottom: 5rem;

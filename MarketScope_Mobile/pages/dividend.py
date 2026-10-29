@@ -23,11 +23,13 @@ def number(value: object) -> float:
 def normalize_yield(value: object) -> float:
     value = number(value)
 
-    if not np.isfinite(value):
+    if not np.isfinite(value) or value < 0:
         return np.nan
 
-    # Handle sources returning percentage points instead of decimals.
-    if value > 1:
+    # Some Yahoo Finance responses provide dividend yield as
+    # percentage points, such as 0.74 meaning 0.74%.
+    # Convert those values to decimal form for {:.2%} formatting.
+    if value > 0.20:
         value /= 100
 
     return value
@@ -183,11 +185,7 @@ st.markdown("""
 <style>
 [data-testid="stSidebar"] {display:none;}
 [data-testid="collapsedControl"] {display:none;}
-<<<<<<< HEAD
-.block-container {max-width:520px;padding:1rem 1rem 5rem 1rem;}
-=======
-.block-container {max-width:520px;padding:3rem 1rem 5rem 1rem;}
->>>>>>> 697fedb (Heading spacing)
+.block-container {max-width:520px;padding:2rem 1rem 5rem 1rem;}
 .module-title {font-size:2rem;font-weight:800;margin-bottom:.15rem;}
 .module-subtitle {color:#9aa3b2;font-size:.9rem;margin-bottom:1rem;}
 .stock-card {border:1px solid rgba(128,128,128,.25);border-radius:16px;padding:.9rem 1rem .8rem;background:rgba(128,128,128,.05);margin-top:.75rem;}
