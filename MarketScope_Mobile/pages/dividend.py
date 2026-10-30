@@ -111,7 +111,7 @@ def load_dividend_data(tickers: tuple[str, ...]) -> pd.DataFrame:
         try:
             security = yf.Ticker(ticker)
             info = security.info or {}
-            history = security.history(period="1y", auto_adjust=True)
+            history = security.history(period="2y", auto_adjust=True)
             scores = dividend_scores(info, history)
 
             price = np.nan

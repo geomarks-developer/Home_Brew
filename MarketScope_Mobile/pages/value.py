@@ -111,7 +111,7 @@ def load_value_data(tickers: tuple[str, ...]) -> pd.DataFrame:
         try:
             security = yf.Ticker(ticker)
             info = security.info or {}
-            history = security.history(period="1y", auto_adjust=True)
+            history = security.history(period="2y", auto_adjust=True)
             scores = value_scores(info, history)
             price = np.nan
             if history is not None and not history.empty and "Close" in history.columns:

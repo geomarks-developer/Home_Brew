@@ -49,7 +49,7 @@ def load_comparison(tickers: tuple[str, ...]) -> tuple[pd.DataFrame, pd.DataFram
         try:
             security = yf.Ticker(ticker)
             info = security.info or {}
-            history = security.history(period="1y", auto_adjust=True)
+            history = security.history(period="2y", auto_adjust=True)
             closes = pd.Series(dtype=float)
             if history is not None and not history.empty and "Close" in history.columns:
                 closes = pd.to_numeric(history["Close"], errors="coerce").dropna()

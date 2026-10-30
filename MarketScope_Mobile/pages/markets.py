@@ -198,7 +198,11 @@ if not sector_chart.empty:
         text=period,
         hover_data={"Symbol": True},
     )
-    fig.update_traces(texttemplate="%{text:+.1%}", textposition="outside")
+    fig.update_traces(
+        texttemplate="%{text:+.1%}",
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Return: %{x:+.2%}<extra></extra>",
+    )
     fig.update_xaxes(tickformat=".0%", title="Return")
     fig.update_layout(height=430, margin=dict(l=5, r=5, t=10, b=5), coloraxis_showscale=False, yaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
