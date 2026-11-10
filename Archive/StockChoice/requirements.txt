@@ -1,7 +1,5 @@
 streamlit
 pandas
 numpy
-yfinance==1.7.0
+yfinance
 plotly
-openpyxl
-matplotlib
