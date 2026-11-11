@@ -614,7 +614,7 @@ selection = st.dataframe(
         ),
         "Trend": st.column_config.TextColumn(
             "Trend",
-            width="small",
+            width="medium",
         ),
 
         "Score": st.column_config.NumberColumn(
