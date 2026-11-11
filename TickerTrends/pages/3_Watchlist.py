@@ -610,11 +610,11 @@ selection = st.dataframe(
 
         "Company": st.column_config.TextColumn(
             "Company",
-            width="medium",
+            width="small",
         ),
         "Trend": st.column_config.TextColumn(
             "Trend",
-            width="medium",
+            width="small",
         ),
 
         "Score": st.column_config.NumberColumn(
