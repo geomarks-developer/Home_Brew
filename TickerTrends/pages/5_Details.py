@@ -58,7 +58,7 @@ from core.universe import get_memberships
 st.set_page_config(
     page_title="Details | TickerTrends",
     page_icon="📈",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -1112,7 +1112,7 @@ with score_col2:
 
 with st.expander(
     "Technical Score",
-    expanded=False,
+    expanded=True,
 ):
 
     for component in technical_result[
@@ -1212,7 +1212,7 @@ for component in fundamental_result[
 
 with st.expander(
     "Fundamental Values",
-    expanded=False,
+    expanded=True,
 ):
 
     st.write(

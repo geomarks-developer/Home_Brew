@@ -48,7 +48,7 @@ from core.trend_state import (
 st.set_page_config(
     page_title="Markets | TickerTrends",
     page_icon="🌎",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 

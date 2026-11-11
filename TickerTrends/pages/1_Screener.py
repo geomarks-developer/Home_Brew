@@ -17,6 +17,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from st_aggrid import AgGrid, GridOptionsBuilder
+
 from core.database import get_all_ticker_states
 
 
@@ -27,7 +29,7 @@ from core.database import get_all_ticker_states
 st.set_page_config(
     page_title="Screener | TickerTrends",
     page_icon="🔎",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -110,7 +112,7 @@ def trend_display(
 
 def apply_filters(
     df: pd.DataFrame,
-    search: str,
+    selected_ticker: str | None,
     selected_trends: list[str],
     minimum_score: int,
     universe: str,
@@ -119,130 +121,59 @@ def apply_filters(
     """
     Apply all Screener filters.
     """
-
     filtered = df.copy()
 
     # --------------------------------------------------------
-    # SEARCH
+    # STOCK
     # --------------------------------------------------------
-
-    search = search.strip()
-
-    if search:
-
-        ticker_match = (
-            filtered["ticker"]
-            .fillna("")
-            .str.contains(
-                search,
-                case=False,
-                regex=False,
-            )
-        )
-
-        company_match = (
-            filtered["company_name"]
-            .fillna("")
-            .str.contains(
-                search,
-                case=False,
-                regex=False,
-            )
-        )
-
+    if selected_ticker:
         filtered = filtered[
-            ticker_match
-            | company_match
+            filtered["ticker"].astype(str) == selected_ticker
         ]
 
     # --------------------------------------------------------
     # TREND
     # --------------------------------------------------------
-
     if selected_trends:
-
         filtered = filtered[
-            filtered[
-                "trend_state"
-            ].isin(
-                selected_trends
-            )
+            filtered["trend_state"].isin(selected_trends)
         ]
 
     # --------------------------------------------------------
     # COMPLETE SCORES
     # --------------------------------------------------------
-
     if complete_scores_only:
-
         filtered = filtered[
-            filtered[
-                "total_score"
-            ].notna()
+            filtered["total_score"].notna()
         ]
 
     # --------------------------------------------------------
     # MINIMUM SCORE
     # --------------------------------------------------------
-
     if minimum_score > 0:
-
         filtered = filtered[
-            filtered[
-                "total_score"
-            ].fillna(-1)
-            >= minimum_score
+            filtered["total_score"].fillna(-1) >= minimum_score
         ]
 
     # --------------------------------------------------------
     # UNIVERSE
     # --------------------------------------------------------
-
     if universe == "NASDAQ-100":
-
-        filtered = filtered[
-            filtered[
-                "in_nasdaq100"
-            ]
-            == 1
-        ]
-
+        filtered = filtered[filtered["in_nasdaq100"] == 1]
     elif universe == "S&P 100":
-
-        filtered = filtered[
-            filtered[
-                "in_sp100"
-            ]
-            == 1
-        ]
-
+        filtered = filtered[filtered["in_sp100"] == 1]
     elif universe == "Dividend Aristocrats":
-
-        filtered = filtered[
-            filtered[
-                "in_aristocrats"
-            ]
-            == 1
-        ]
+        filtered = filtered[filtered["in_aristocrats"] == 1]
 
     # --------------------------------------------------------
     # DEFAULT SORT
     # --------------------------------------------------------
-
     filtered = filtered.sort_values(
-        by=[
-            "total_score",
-            "ticker",
-        ],
-        ascending=[
-            False,
-            True,
-        ],
+        by=["total_score", "ticker"],
+        ascending=[False, True],
         na_position="last",
     )
-
     return filtered
-
 
 # ============================================================
 # HEADER
@@ -274,9 +205,41 @@ if df.empty:
 # PRIMARY FILTERS
 # ============================================================
 
-search = st.text_input(
-    "Search",
-    placeholder="Ticker or company",
+stock_options = [None] + (
+    df[["ticker", "company_name"]]
+    .drop_duplicates(subset=["ticker"])
+    .sort_values("ticker")
+    .apply(
+        lambda row: (
+            str(row["ticker"]),
+            (
+                str(row["company_name"])
+                if pd.notna(row["company_name"])
+                and str(row["company_name"]).strip()
+                else str(row["ticker"])
+            ),
+        ),
+        axis=1,
+    )
+    .tolist()
+)
+
+selected_stock = st.selectbox(
+    "Stock",
+    options=stock_options,
+    index=0,
+    format_func=lambda option: (
+        "All Stocks"
+        if option is None
+        else f"{option[0]} — {option[1]}"
+    ),
+    placeholder="Choose a stock",
+)
+
+selected_ticker = (
+    selected_stock[0]
+    if selected_stock is not None
+    else None
 )
 
 
@@ -323,7 +286,7 @@ with st.expander(
 
 filtered = apply_filters(
     df=df,
-    search=search,
+    selected_ticker=selected_ticker,
     selected_trends=selected_trends,
     minimum_score=minimum_score,
     universe=universe,
@@ -405,15 +368,6 @@ display["rsi_14"] = (
 )
 
 
-# Preserve ticker order for row-selection lookup.
-ticker_lookup = (
-    display["ticker"]
-    .reset_index(
-        drop=True
-    )
-)
-
-
 display.rename(
     columns={
         "ticker": "Ticker",
@@ -432,183 +386,89 @@ display.reset_index(
 
 
 # ============================================================
-# SCREENER TABLE
+# CLICKABLE SCREENER TABLE
 # ============================================================
 
-selection = st.dataframe(
+grid_builder = GridOptionsBuilder.from_dataframe(display)
+
+grid_builder.configure_default_column(
+    sortable=True,
+    filterable=False,
+    resizable=True,
+    editable=False,
+)
+
+grid_builder.configure_column(
+    "Ticker",
+    width=105,
+    minWidth=90,
+)
+
+grid_builder.configure_column(
+    "Trend",
+    width=190,
+    minWidth=150,
+)
+
+grid_builder.configure_column(
+    "Score",
+    width=95,
+    minWidth=80,
+    type=["numericColumn"],
+    valueFormatter="x == null ? '' : x.toFixed(1)",
+)
+
+grid_builder.configure_column(
+    "RSI",
+    width=85,
+    minWidth=75,
+    type=["numericColumn"],
+    valueFormatter="x == null ? '' : x.toFixed(1)",
+)
+
+# Select a stock by clicking anywhere on its row.
+# No checkbox column is displayed.
+grid_builder.configure_selection(
+    selection_mode="single",
+    use_checkbox=False,
+)
+
+grid_options = grid_builder.build()
+grid_options["suppressRowClickSelection"] = False
+
+grid_response = AgGrid(
     display,
-    hide_index=True,
-    width="stretch",
+    gridOptions=grid_options,
     height=560,
-    on_select="rerun",
-    selection_mode="single-row",
-    key="tickertrends_screener",
-    column_order=[
-        "Ticker",
-        "Trend",
-        "Score",
-        "RSI",
-    ],
-    column_config={
-        "Ticker": st.column_config.TextColumn(
-            "Ticker",
-            width="small",
-        ),
-
-        "Trend": st.column_config.TextColumn(
-            "Trend",
-            width="medium",
-        ),
-
-        "Score": st.column_config.NumberColumn(
-            "Score",
-            min_value=0,
-            max_value=100,
-            format="%.1f",
-            width="small",
-        ),
-
-        "RSI": st.column_config.NumberColumn(
-            "RSI",
-            min_value=0,
-            max_value=100,
-            format="%.1f",
-            width="small",
-        ),
-    },
+    fit_columns_on_grid_load=True,
+    allow_unsafe_jscode=False,
+    update_on=["selectionChanged"],
+    key="tickertrends_screener_clickable",
 )
 
-
 # ============================================================
-# SELECTED TICKER
+# OPEN DETAILS WHEN A ROW IS CLICKED
 # ============================================================
 
-selected_rows = (
-    selection.selection.rows
-    if selection
-    else []
-)
+selected_rows = grid_response.get("selected_rows")
+selected_row = None
 
+if isinstance(selected_rows, pd.DataFrame):
+    if not selected_rows.empty:
+        selected_row = selected_rows.iloc[0]
+elif isinstance(selected_rows, list):
+    if selected_rows:
+        selected_row = selected_rows[0]
 
-if selected_rows:
+if selected_row is not None:
+    if isinstance(selected_row, pd.Series):
+        clicked_ticker = selected_row.get("Ticker")
+    else:
+        clicked_ticker = selected_row.get("Ticker")
 
-    selected_index = (
-        selected_rows[0]
-    )
-
-    selected_ticker = (
-        ticker_lookup.iloc[
-            selected_index
-        ]
-    )
-
-    selected_record = (
-        filtered[
-            filtered["ticker"]
-            == selected_ticker
-        ]
-        .iloc[0]
-    )
-
-
-    # Store selection for Details.
-    st.session_state[
-        "selected_ticker"
-    ] = selected_ticker
-
-
-    # --------------------------------------------------------
-    # QUICK VIEW
-    # --------------------------------------------------------
-
-    st.divider()
-
-    st.subheader(
-        selected_ticker
-    )
-
-
-    company_name = (
-        selected_record.get(
-            "company_name"
-        )
-        or selected_ticker
-    )
-
-
-    st.caption(
-        company_name
-    )
-
-
-    st.write(
-        trend_display(
-            selected_record[
-                "trend_state"
-            ]
-        )
-    )
-
-
-    # --------------------------------------------------------
-    # SCORE / RSI
-    # --------------------------------------------------------
-
-    score = (
-        selected_record.get(
-            "total_score"
-        )
-    )
-
-    rsi = (
-        selected_record.get(
-            "rsi_14"
-        )
-    )
-
-
-    metric_col1, metric_col2 = (
-        st.columns(2)
-    )
-
-
-    with metric_col1:
-
-        st.metric(
-            "Score",
-            (
-                f"{score:.1f}"
-                if pd.notna(score)
-                else "N/A"
-            ),
-        )
-
-
-    with metric_col2:
-
-        st.metric(
-            "RSI",
-            (
-                f"{rsi:.1f}"
-                if pd.notna(rsi)
-                else "N/A"
-            ),
-        )
-
-
-    # --------------------------------------------------------
-    # DETAILS LINK
-    # --------------------------------------------------------
-
-    st.page_link(
-        "pages/5_Details.py",
-        label=(
-            f"View {selected_ticker} Details"
-        ),
-        icon="📈",
-        use_container_width=True,
-    )
-
+    if clicked_ticker:
+        st.session_state["selected_ticker"] = str(clicked_ticker)
+        st.switch_page("pages/5_Details.py")
 
 # ============================================================
 # FOOTER

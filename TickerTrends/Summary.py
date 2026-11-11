@@ -24,6 +24,7 @@ from typing import Any
 
 import pandas as pd
 import streamlit as st
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 from core.database import (
     get_all_ticker_states,
@@ -48,7 +49,8 @@ initialize_database()
 st.set_page_config(
     page_title="TickerTrends",
     page_icon="📈",
-    layout="wide",
+    layout="centered",
+    #layout="wide",
     initial_sidebar_state="collapsed",
 )
 
@@ -275,15 +277,13 @@ def display_stock_table(
     source_df: pd.DataFrame,
     key: str,
     height: int = 260,
-) -> str | None:
+) -> None:
     """
-    Display a compact mobile-friendly stock table.
-
-    Returns the selected ticker, if any.
+    Display a compact clickable stock grid.
+    Clicking anywhere on a row opens Details for that ticker.
     """
-
     if source_df.empty:
-        return None
+        return
 
     table = source_df[
         [
@@ -294,48 +294,23 @@ def display_stock_table(
         ]
     ].copy()
 
-    table[
-        "trend_state"
-    ] = (
-        table[
-            "trend_state"
-        ]
-        .apply(
-            trend_display
-        )
+    table["trend_state"] = (
+        table["trend_state"]
+        .apply(trend_display)
     )
-
-    table[
-        "total_score"
-    ] = (
+    table["total_score"] = (
         pd.to_numeric(
-            table[
-                "total_score"
-            ],
+            table["total_score"],
             errors="coerce",
         )
         .round(1)
     )
-
-    table[
-        "rsi_14"
-    ] = (
+    table["rsi_14"] = (
         pd.to_numeric(
-            table[
-                "rsi_14"
-            ],
+            table["rsi_14"],
             errors="coerce",
         )
         .round(1)
-    )
-
-    ticker_lookup = (
-        table[
-            "ticker"
-        ]
-        .reset_index(
-            drop=True
-        )
     )
 
     table.rename(
@@ -347,108 +322,77 @@ def display_stock_table(
         },
         inplace=True,
     )
+    table.reset_index(drop=True, inplace=True)
 
-    table.reset_index(
-        drop=True,
-        inplace=True,
+    grid_builder = GridOptionsBuilder.from_dataframe(table)
+    grid_builder.configure_default_column(
+        sortable=True,
+        filterable=False,
+        resizable=True,
+        editable=False,
+    )
+    grid_builder.configure_column(
+        "Ticker",
+        width=105,
+        minWidth=90,
+    )
+    grid_builder.configure_column(
+        "Trend",
+        width=190,
+        minWidth=150,
+    )
+    grid_builder.configure_column(
+        "Score",
+        width=95,
+        minWidth=80,
+        type=["numericColumn"],
+    )
+    grid_builder.configure_column(
+        "RSI",
+        width=85,
+        minWidth=75,
+        type=["numericColumn"],
     )
 
-    event = st.dataframe(
+    grid_builder.configure_selection(
+        selection_mode="single",
+        use_checkbox=False,
+    )
+
+    grid_options = grid_builder.build()
+    grid_options["suppressRowClickSelection"] = False
+
+    grid_response = AgGrid(
         table,
-        hide_index=True,
-        width="stretch",
+        gridOptions=grid_options,
         height=height,
-        on_select="rerun",
-        selection_mode="single-row",
+        fit_columns_on_grid_load=True,
+        allow_unsafe_jscode=False,
+        update_on=["selectionChanged"],
         key=key,
-        column_order=[
-            "Ticker",
-            "Trend",
-            "Score",
-            "RSI",
-        ],
-        column_config={
-            "Ticker": (
-                st.column_config.TextColumn(
-                    "Ticker",
-                    width="small",
-                )
-            ),
-
-            "Trend": (
-                st.column_config.TextColumn(
-                    "Trend",
-                    width="medium",
-                )
-            ),
-
-            "Score": (
-                st.column_config.NumberColumn(
-                    "Score",
-                    format="%.1f",
-                    width="small",
-                )
-            ),
-
-            "RSI": (
-                st.column_config.NumberColumn(
-                    "RSI",
-                    format="%.1f",
-                    width="small",
-                )
-            ),
-        },
     )
 
-    selected_rows = (
-        event.selection.rows
-        if event
-        else []
-    )
+    selected_rows = grid_response.get("selected_rows")
+    selected_row = None
 
-    if not selected_rows:
-        return None
+    if isinstance(selected_rows, pd.DataFrame):
+        if not selected_rows.empty:
+            selected_row = selected_rows.iloc[0]
+    elif isinstance(selected_rows, list):
+        if selected_rows:
+            selected_row = selected_rows[0]
 
-    index = selected_rows[
-        0
-    ]
-
-    return str(
-        ticker_lookup.iloc[
-            index
-        ]
-    )
-
-
-# ============================================================
-# DETAILS NAVIGATION
-# ============================================================
-
-def show_details_button(
-    ticker: str | None,
-    key: str,
-) -> None:
-    """
-    Show a Details button for a selected ticker.
-    """
-
-    if not ticker:
+    if selected_row is None:
         return
 
-    st.session_state[
-        "selected_ticker"
-    ] = ticker
+    if isinstance(selected_row, pd.Series):
+        selected_ticker = selected_row.get("Ticker")
+    else:
+        selected_ticker = selected_row.get("Ticker")
 
-    if st.button(
-        f"View {ticker} Details",
-        key=key,
-        use_container_width=True,
-    ):
-
-        st.switch_page(
-            "pages/5_Details.py"
-        )
-
+    if selected_ticker:
+        st.session_state["selected_ticker"] = str(selected_ticker)
+        st.switch_page("pages/5_Details.py")
 
 # ============================================================
 # LOAD DATA
@@ -476,332 +420,6 @@ st.title("📈 TickerTrends")
 st.caption(
     "Follow the trend. Know when it changes."
 )
-
-
-# ============================================================
-# FRESHNESS INDICATOR
-# ============================================================
-
-last_scan = freshness[
-    "scan"
-]
-
-
-if last_scan:
-
-    current = full_scan_is_current(
-        last_scan
-    )
-
-    if current:
-
-        st.success(
-            "✓ Market data is current"
-        )
-
-    else:
-
-        st.warning(
-            "Market data has not been fully "
-            "refreshed today."
-        )
-
-
-    freshness_col1, freshness_col2 = (
-        st.columns(2)
-    )
-
-
-    with freshness_col1:
-
-        st.metric(
-            "Last Full Scan",
-            format_timestamp(
-                last_scan.get(
-                    "completed_at"
-                )
-            ),
-        )
-
-
-    with freshness_col2:
-
-        successful = (
-            last_scan.get(
-                "successful",
-                0,
-            )
-        )
-
-        requested = (
-            last_scan.get(
-                "requested",
-                0,
-            )
-        )
-
-        st.metric(
-            "Updated",
-            f"{successful} / {requested}",
-        )
-
-
-    failed = last_scan.get(
-        "failed",
-        0,
-    )
-
-
-    if failed:
-
-        st.caption(
-            f"{failed} securities could not be updated "
-            f"during the last full scan."
-        )
-
-
-else:
-
-    st.warning(
-        "No completed full-universe scan has been "
-        "recorded yet."
-    )
-
-    latest = freshness.get(
-        "latest_ticker_update"
-    )
-
-    if latest:
-
-        st.caption(
-            "Latest stored ticker update: "
-            f"{format_timestamp(latest)}"
-        )
-
-
-# ============================================================
-# NO MARKET DATA
-# ============================================================
-
-if df.empty:
-
-    st.divider()
-
-    st.info(
-        "No calculated TickerTrends data is available."
-    )
-
-    st.caption(
-        "Run the universe scanner to populate "
-        "tickertrends.db."
-    )
-
-    st.stop()
-
-
-# ============================================================
-# MARKET SNAPSHOT
-# ============================================================
-
-st.divider()
-
-st.subheader(
-    "Market Snapshot"
-)
-
-
-total_stocks = len(
-    df
-)
-
-
-complete_scores = int(
-    df[
-        "total_score"
-    ]
-    .notna()
-    .sum()
-)
-
-
-strong_bullish = int(
-    (
-        df[
-            "trend_state"
-        ]
-        == "Strong Bullish"
-    )
-    .sum()
-)
-
-
-bearish = int(
-    (
-        df[
-            "trend_state"
-        ]
-        == "Bearish"
-    )
-    .sum()
-)
-
-
-snapshot_col1, snapshot_col2 = (
-    st.columns(2)
-)
-
-
-with snapshot_col1:
-
-    st.metric(
-        "Stocks",
-        total_stocks,
-    )
-
-    st.metric(
-        "Strong Bullish",
-        strong_bullish,
-    )
-
-
-with snapshot_col2:
-
-    st.metric(
-        "Complete Scores",
-        complete_scores,
-    )
-
-    st.metric(
-        "Bearish",
-        bearish,
-    )
-
-
-# ============================================================
-# TREND DISTRIBUTION
-# ============================================================
-
-with st.expander(
-    "Trend Distribution",
-    expanded=False,
-):
-
-    trend_rows = []
-
-
-    for state in TREND_ORDER:
-
-        count = int(
-            (
-                df[
-                    "trend_state"
-                ]
-                == state
-            )
-            .sum()
-        )
-
-        trend_rows.append(
-            {
-                "Trend": (
-                    trend_display(
-                        state
-                    )
-                ),
-
-                "Stocks": count,
-            }
-        )
-
-
-    trend_df = pd.DataFrame(
-        trend_rows
-    )
-
-
-    st.dataframe(
-        trend_df,
-        hide_index=True,
-        width="stretch",
-        column_config={
-            "Trend": (
-                st.column_config.TextColumn(
-                    "Trend",
-                    width="medium",
-                )
-            ),
-
-            "Stocks": (
-                st.column_config.NumberColumn(
-                    "Stocks",
-                    width="small",
-                )
-            ),
-        },
-    )
-
-
-# ============================================================
-# WATCHLIST ALERTS
-# ============================================================
-
-if not changes_df.empty:
-
-    st.divider()
-
-    st.subheader(
-        f"🔔 Watchlist Changes ({len(changes_df)})"
-    )
-
-
-    for _, change in (
-        changes_df.head(
-            3
-        )
-        .iterrows()
-    ):
-
-        ticker = str(
-            change[
-                "ticker"
-            ]
-        )
-
-        old_state = (
-            change.get(
-                "old_state"
-            )
-            or "Unknown"
-        )
-
-        new_state = (
-            change.get(
-                "new_state"
-            )
-            or "Unknown"
-        )
-
-
-        with st.container(
-            border=True
-        ):
-
-            st.markdown(
-                f"**{ticker}**"
-            )
-
-            st.write(
-                f"{trend_display(old_state)} "
-                f"→ {trend_display(new_state)}"
-            )
-
-
-    st.page_link(
-        "pages/3_Watchlist.py",
-        label="View Watchlist Changes",
-        icon="⭐",
-        use_container_width=True,
-    )
 
 
 # ============================================================
@@ -838,18 +456,10 @@ top_scores = (
 )
 
 
-selected_top = (
-    display_stock_table(
-        top_scores,
-        key="summary_top_scores",
-        height=300,
-    )
-)
-
-
-show_details_button(
-    selected_top,
-    key="summary_top_details",
+display_stock_table(
+    top_scores,
+    key="summary_top_scores",
+    height=300,
 )
 
 
@@ -916,18 +526,10 @@ if accumulation_df.empty:
 
 else:
 
-    selected_accumulation = (
-        display_stock_table(
-            accumulation_df,
-            key="summary_accumulation",
-            height=300,
-        )
-    )
-
-
-    show_details_button(
-        selected_accumulation,
-        key="summary_accumulation_details",
+    display_stock_table(
+        accumulation_df,
+        key="summary_accumulation",
+        height=300,
     )
 
 
@@ -992,19 +594,75 @@ if caution_df.empty:
 
 else:
 
-    selected_caution = (
-        display_stock_table(
-            caution_df,
-            key="summary_caution",
-            height=300,
+    display_stock_table(
+        caution_df,
+        key="summary_caution",
+        height=300,
+    )
+
+
+# ============================================================
+# WATCHLIST ALERTS
+# ============================================================
+
+if not changes_df.empty:
+
+    st.divider()
+
+    st.subheader(
+        f"🔔 Watchlist Changes ({len(changes_df)})"
+    )
+
+
+    for _, change in (
+        changes_df.head(
+            3
         )
-    )
+        .iterrows()
+    ):
+
+        ticker = str(
+            change[
+                "ticker"
+            ]
+        )
+
+        old_state = (
+            change.get(
+                "old_state"
+            )
+            or "Unknown"
+        )
+
+        new_state = (
+            change.get(
+                "new_state"
+            )
+            or "Unknown"
+        )
 
 
-    show_details_button(
-        selected_caution,
-        key="summary_caution_details",
+        with st.container(
+            border=True
+        ):
+
+            st.markdown(
+                f"**{ticker}**"
+            )
+
+            st.write(
+                f"{trend_display(old_state)} "
+                f"→ {trend_display(new_state)}"
+            )
+
+
+    st.page_link(
+        "pages/3_Watchlist.py",
+        label="View Watchlist Changes",
+        icon="⭐",
+        use_container_width=True,
     )
+
 
 
 # ============================================================
@@ -1052,18 +710,10 @@ else:
     )
 
 
-    selected_watchlist = (
-        display_stock_table(
-            watchlist_sorted,
-            key="summary_watchlist",
-            height=255,
-        )
-    )
-
-
-    show_details_button(
-        selected_watchlist,
-        key="summary_watchlist_details",
+    display_stock_table(
+        watchlist_sorted,
+        key="summary_watchlist",
+        height=255,
     )
 
 
@@ -1116,6 +766,271 @@ st.page_link(
     icon="📖",
     use_container_width=True,
 )
+
+
+# ============================================================
+# FRESHNESS INDICATOR
+# ============================================================
+
+st.divider()
+
+with st.expander(
+    "Scan Status",
+    expanded=False,
+):
+
+    last_scan = freshness[
+        "scan"
+    ]
+
+    if last_scan:
+
+        current = full_scan_is_current(
+            last_scan
+        )
+
+        if current:
+
+            st.success(
+                "✓ Market data is current"
+            )
+
+        else:
+
+            st.warning(
+                "Market data has not been fully "
+                "refreshed today."
+            )
+
+
+        freshness_col1, freshness_col2 = (
+            st.columns(2)
+        )
+
+
+        with freshness_col1:
+
+            st.metric(
+                "Last Full Scan",
+                format_timestamp(
+                    last_scan.get(
+                        "completed_at"
+                    )
+                ),
+            )
+
+
+        with freshness_col2:
+
+            successful = (
+                last_scan.get(
+                    "successful",
+                    0,
+                )
+            )
+
+            requested = (
+                last_scan.get(
+                    "requested",
+                    0,
+                )
+            )
+
+            st.metric(
+                "Updated",
+                f"{successful} / {requested}",
+            )
+
+
+        failed = last_scan.get(
+            "failed",
+            0,
+        )
+
+
+        if failed:
+
+            st.caption(
+                f"{failed} securities could not be updated "
+                f"during the last full scan."
+            )
+
+
+    else:
+
+        st.warning(
+            "No completed full-universe scan has been "
+            "recorded yet."
+        )
+
+        latest = freshness.get(
+            "latest_ticker_update"
+        )
+
+        if latest:
+
+            st.caption(
+                "Latest stored ticker update: "
+                f"{format_timestamp(latest)}"
+            )
+
+
+    # ============================================================
+    # NO MARKET DATA
+    # ============================================================
+
+    if df.empty:
+
+        st.info(
+            "No calculated TickerTrends data is available."
+        )
+
+        st.caption(
+            "Run the universe scanner to populate "
+            "tickertrends.db."
+        )
+
+        st.stop()
+
+
+# ============================================================
+# MARKET SNAPSHOT
+# ============================================================
+
+with st.expander(
+    "Market Snapshot",
+    expanded=False,
+):
+
+    total_stocks = len(
+        df
+    )
+
+
+    complete_scores = int(
+        df[
+            "total_score"
+        ]
+        .notna()
+        .sum()
+    )
+
+
+    strong_bullish = int(
+        (
+            df[
+                "trend_state"
+            ]
+            == "Strong Bullish"
+        )
+        .sum()
+    )
+
+
+    bearish = int(
+        (
+            df[
+                "trend_state"
+            ]
+            == "Bearish"
+        )
+        .sum()
+    )
+
+
+    snapshot_col1, snapshot_col2 = (
+        st.columns(2)
+    )
+
+
+    with snapshot_col1:
+
+        st.metric(
+            "Stocks",
+            total_stocks,
+        )
+
+        st.metric(
+            "Strong Bullish",
+            strong_bullish,
+        )
+
+
+    with snapshot_col2:
+
+        st.metric(
+            "Complete Scores",
+            complete_scores,
+        )
+
+        st.metric(
+            "Bearish",
+            bearish,
+        )
+
+
+# ============================================================
+# TREND DISTRIBUTION
+# ============================================================
+
+with st.expander(
+    "Trend Distribution",
+    expanded=False,
+):
+
+    trend_rows = []
+
+
+    for state in TREND_ORDER:
+
+        count = int(
+            (
+                df[
+                    "trend_state"
+                ]
+                == state
+            )
+            .sum()
+        )
+
+        trend_rows.append(
+            {
+                "Trend": (
+                    trend_display(
+                        state
+                    )
+                ),
+
+                "Stocks": count,
+            }
+        )
+
+
+    trend_df = pd.DataFrame(
+        trend_rows
+    )
+
+
+    st.dataframe(
+        trend_df,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "Trend": (
+                st.column_config.TextColumn(
+                    "Trend",
+                    width="medium",
+                )
+            ),
+
+            "Stocks": (
+                st.column_config.NumberColumn(
+                    "Stocks",
+                    width="small",
+                )
+            ),
+        },
+    )
 
 
 # ============================================================

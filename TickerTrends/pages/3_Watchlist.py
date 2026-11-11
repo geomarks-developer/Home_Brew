@@ -42,7 +42,7 @@ from core.database import (
 st.set_page_config(
     page_title="Watchlist | TickerTrends",
     page_icon="⭐",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -650,25 +650,27 @@ selected_rows = (
 
 if selected_rows:
 
-    selected_index = (
-        selected_rows[0]
+    selected_index = selected_rows[0]
+
+    # Guard against a stale Streamlit row selection after a rerun
+    # or after the Watchlist contents change.
+    if not (0 <= selected_index < len(ticker_lookup)):
+        st.rerun()
+
+    selected_ticker = str(
+        ticker_lookup.iloc[selected_index]
     )
 
-    selected_ticker = (
-        ticker_lookup.iloc[
-            selected_index
-        ]
-    )
+    selected_matches = watchlist_df[
+        watchlist_df["ticker"].astype(str) == selected_ticker
+    ]
 
-    selected_record = (
-        watchlist_df[
-            watchlist_df[
-                "ticker"
-            ]
-            == selected_ticker
-        ]
-        .iloc[0]
-    )
+    # The selected ticker may have been removed between rendering
+    # the table and processing the selection.
+    if selected_matches.empty:
+        st.rerun()
+
+    selected_record = selected_matches.iloc[0]
 
 
     st.session_state[

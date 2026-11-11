@@ -60,7 +60,7 @@ from core.trend_state import format_state
 st.set_page_config(
     page_title="Compare | TickerTrends",
     page_icon="⚖️",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
