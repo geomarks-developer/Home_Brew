@@ -25,6 +25,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder
+from core.scanner import scan_universe
 
 from core.database import (
     get_all_ticker_states,
@@ -141,6 +142,17 @@ def load_watchlist_changes() -> pd.DataFrame:
         return pd.DataFrame()
 
     return pd.DataFrame(rows)
+
+
+# ============================================================
+# CACHE CONTROL
+# ============================================================
+def clear_summary_caches() -> None:
+    """Clear Summary reads after a completed market refresh."""
+    load_market_data.clear()
+    load_freshness.clear()
+    load_watchlist_data.clear()
+    load_watchlist_changes.clear()
 
 
 # ============================================================
@@ -874,6 +886,50 @@ with st.expander(
                 f"{format_timestamp(latest)}"
             )
 
+
+    st.divider()
+    st.caption(
+        "A full refresh downloads current market data and recalculates "
+        "technicals, fundamentals, trend states, and scores."
+    )
+
+    if st.button(
+        "🔄 Refresh Market Data",
+        type="primary",
+        use_container_width=True,
+        key="refresh_market_data",
+    ):
+        try:
+            with st.spinner(
+                "Refreshing the full TickerTrends universe. "
+                "This may take several minutes..."
+            ):
+                refresh_result = scan_universe(
+                    delay=0.50,
+                    retries=1,
+                    retry_delay=3.0,
+                    sync_before_scan=True,
+                )
+
+            clear_summary_caches()
+            st.session_state["market_refresh_message"] = (
+                f"Refresh complete: {refresh_result.successful} of "
+                f"{refresh_result.requested} updated; "
+                f"{refresh_result.failed} failed."
+            )
+            st.rerun()
+        except Exception as exc:
+            st.error(
+                "Market refresh failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+    refresh_message = st.session_state.pop(
+        "market_refresh_message",
+        None,
+    )
+    if refresh_message:
+        st.success(refresh_message)
 
     # ============================================================
     # NO MARKET DATA
