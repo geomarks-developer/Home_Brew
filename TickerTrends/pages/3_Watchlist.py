@@ -610,7 +610,7 @@ selection = st.dataframe(
 
         "Company": st.column_config.TextColumn(
             "Company",
-            width="small",
+            width="medium",
         ),
         "Trend": st.column_config.TextColumn(
             "Trend",
