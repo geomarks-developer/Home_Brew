@@ -331,12 +331,17 @@ if filtered.empty:
 display = filtered[
     [
         "ticker",
+        "company_name",
         "trend_state",
         "total_score",
-        "rsi_14",
     ]
 ].copy()
 
+# Clean up missing company names.
+display["company_name"] = (
+    display["company_name"]
+    .fillna("")
+)
 
 display["trend_state"] = (
     display["trend_state"]
@@ -345,45 +350,28 @@ display["trend_state"] = (
     )
 )
 
-
 display["total_score"] = (
     pd.to_numeric(
-        display[
-            "total_score"
-        ],
+        display["total_score"],
         errors="coerce",
     )
     .round(1)
 )
-
-
-display["rsi_14"] = (
-    pd.to_numeric(
-        display[
-            "rsi_14"
-        ],
-        errors="coerce",
-    )
-    .round(1)
-)
-
 
 display.rename(
     columns={
         "ticker": "Ticker",
+        "company_name": "Company",
         "trend_state": "Trend",
         "total_score": "Score",
-        "rsi_14": "RSI",
     },
     inplace=True,
 )
-
 
 display.reset_index(
     drop=True,
     inplace=True,
 )
-
 
 # ============================================================
 # CLICKABLE SCREENER TABLE
@@ -405,23 +393,21 @@ grid_builder.configure_column(
 )
 
 grid_builder.configure_column(
+    "Company",
+    width=220,
+    minWidth=145,
+)
+
+grid_builder.configure_column(
     "Trend",
-    width=190,
-    minWidth=150,
+    width=180,
+    minWidth=140,
 )
 
 grid_builder.configure_column(
     "Score",
-    width=95,
-    minWidth=80,
-    type=["numericColumn"],
-    valueFormatter="x == null ? '' : x.toFixed(1)",
-)
-
-grid_builder.configure_column(
-    "RSI",
     width=85,
-    minWidth=75,
+    minWidth=70,
     type=["numericColumn"],
     valueFormatter="x == null ? '' : x.toFixed(1)",
 )

@@ -456,6 +456,12 @@ with summary_col2:
 display = watchlist_df.copy()
 
 
+# Clean up missing company names.
+display["company_name"] = (
+    display["company_name"]
+    .fillna("")
+)
+
 display["trend_display"] = (
     display[
         "trend_state"
@@ -469,17 +475,6 @@ display["total_score"] = (
     pd.to_numeric(
         display[
             "total_score"
-        ],
-        errors="coerce",
-    )
-    .round(1)
-)
-
-
-display["rsi_14"] = (
-    pd.to_numeric(
-        display[
-            "rsi_14"
         ],
         errors="coerce",
     )
@@ -565,9 +560,9 @@ ticker_lookup = (
 display = display[
     [
         "ticker_display",
+        "company_name",
         "trend_display",
         "total_score",
-        "rsi_14",
     ]
 ].copy()
 
@@ -575,9 +570,9 @@ display = display[
 display.rename(
     columns={
         "ticker_display": "Ticker",
+        "company_name": "Company",
         "trend_display": "Trend",
         "total_score": "Score",
-        "rsi_14": "RSI",
     },
     inplace=True,
 )
@@ -603,9 +598,9 @@ selection = st.dataframe(
     key="tickertrends_watchlist",
     column_order=[
         "Ticker",
+        "Company",
         "Trend",
         "Score",
-        "RSI",
     ],
     column_config={
         "Ticker": st.column_config.TextColumn(
@@ -613,6 +608,10 @@ selection = st.dataframe(
             width="small",
         ),
 
+        "Company": st.column_config.TextColumn(
+            "Company",
+            width="medium",
+        ),
         "Trend": st.column_config.TextColumn(
             "Trend",
             width="medium",
@@ -626,13 +625,6 @@ selection = st.dataframe(
             width="small",
         ),
 
-        "RSI": st.column_config.NumberColumn(
-            "RSI",
-            min_value=0,
-            max_value=100,
-            format="%.1f",
-            width="small",
-        ),
     },
 )
 

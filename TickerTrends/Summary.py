@@ -300,9 +300,9 @@ def display_stock_table(
     table = source_df[
         [
             "ticker",
+            "company_name",
             "trend_state",
             "total_score",
-            "rsi_14",
         ]
     ].copy()
 
@@ -317,20 +317,13 @@ def display_stock_table(
         )
         .round(1)
     )
-    table["rsi_14"] = (
-        pd.to_numeric(
-            table["rsi_14"],
-            errors="coerce",
-        )
-        .round(1)
-    )
 
     table.rename(
         columns={
             "ticker": "Ticker",
+            "company_name": "Company",
             "trend_state": "Trend",
             "total_score": "Score",
-            "rsi_14": "RSI",
         },
         inplace=True,
     )
@@ -345,23 +338,22 @@ def display_stock_table(
     )
     grid_builder.configure_column(
         "Ticker",
-        width=105,
-        minWidth=90,
+        width=95,
+        minWidth=85,
+    )
+    grid_builder.configure_column(
+        "Company",
+        width=220,
+        minWidth=160,
     )
     grid_builder.configure_column(
         "Trend",
-        width=190,
-        minWidth=150,
+        width=180,
+        minWidth=145,
     )
     grid_builder.configure_column(
         "Score",
         width=95,
-        minWidth=80,
-        type=["numericColumn"],
-    )
-    grid_builder.configure_column(
-        "RSI",
-        width=85,
         minWidth=75,
         type=["numericColumn"],
     )
