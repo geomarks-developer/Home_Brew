@@ -338,23 +338,23 @@ def display_stock_table(
     )
     grid_builder.configure_column(
         "Ticker",
-        width=95,
-        minWidth=85,
+        width=75,
+        minWidth=65,
     )
     grid_builder.configure_column(
         "Company",
-        width=220,
-        minWidth=160,
+        width=200,
+        minWidth=150,
     )
     grid_builder.configure_column(
         "Trend",
-        width=180,
-        minWidth=145,
+        width=160,
+        minWidth=140,
     )
     grid_builder.configure_column(
         "Score",
-        width=95,
-        minWidth=75,
+        width=85,
+        minWidth=65,
         type=["numericColumn"],
     )
 
