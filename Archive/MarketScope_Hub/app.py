@@ -105,48 +105,40 @@ def app_card(
     )
 
 
-row1_left, row1_right = st.columns(2, gap="large")
-with row1_left:
-    app_card(
-        "📈",
-        "Growth",
-        "Research companies with strong fundamental expansion and supportive market momentum.",
-        "revenue and earnings expansion, quality, valuation, momentum",
-        APP_URLS["Growth"],
-    )
-
-with row1_right:
-    app_card(
-        "💎",
-        "Value",
-        "Find attractively valued companies while checking business quality, financial strength, and potential value traps.",
-        "valuation, quality, financial strength, value-trap risk",
-        APP_URLS["Value"],
-    )
+app_card(
+    "📈",
+    "Growth",
+    "Research companies with strong fundamental expansion and supportive market momentum.",
+    "revenue and earnings expansion, quality, valuation, momentum",
+    APP_URLS["Growth"],
+)
 
 st.write("")
-row2_left, row2_right = st.columns(2, gap="large")
-with row2_left:
-    app_card(
-        "💰",
-        "Dividend",
-        "Research dividend-focused companies with attention to income, quality, sustainability, and portfolio construction.",
-        "dividend yield, dividend quality, sustainability, income",
-        APP_URLS["Dividend"],
-    )
 
-with row2_right:
-    app_card(
-        "🌐",
-        "ETF",
-        "Explore ETFs and sectors using fund characteristics, performance, comparison tools, and portfolio analysis.",
-        "ETFs, sectors, expenses, performance, allocation",
-        APP_URLS["ETF"],
-    )
+app_card(
+    "💎",
+    "Value",
+    "Find attractively valued companies while checking business quality, financial strength, and potential value traps.",
+    "valuation, quality, financial strength, value-trap risk",
+    APP_URLS["Value"],
+)
 
-st.divider()
-st.markdown('<div class="section-label">MarketScope Research Suite</div>', unsafe_allow_html=True)
-st.caption(
-    "Each MarketScope application remains independent with its own research methodology, "
-    "data cache, pages, and portfolio tools. The Hub acts only as the common launch point."
+st.write("")
+
+app_card(
+    "💰",
+    "Dividend",
+    "Research dividend-focused companies with attention to income, quality, sustainability, and portfolio construction.",
+    "dividend yield, dividend quality, sustainability, income",
+    APP_URLS["Dividend"],
+)
+
+st.write("")
+
+app_card(
+    "🌐",
+    "ETF",
+    "Explore ETFs and sectors using fund characteristics, performance, comparison tools, and portfolio analysis.",
+    "ETFs, sectors, expenses, performance, allocation",
+    APP_URLS["ETF"],
 )
