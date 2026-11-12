@@ -358,7 +358,7 @@ if st.button(
     key="home_button",
     use_container_width=False,
 ):
-    st.switch_page("summary.py")
+    st.switch_page("Summary.py")
 
 
 # ============================================================
