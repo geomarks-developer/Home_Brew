@@ -4,3 +4,5 @@ __pycache__/
 .vscode/
 .idea/
 .env
+# Local StockChoice backup
+/StockChoice_backup/
