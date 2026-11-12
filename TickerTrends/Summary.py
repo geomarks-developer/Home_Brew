@@ -673,60 +673,60 @@ if not changes_df.empty:
 # WATCHLIST SUMMARY
 # ============================================================
 
-st.divider()
+#st.divider()
 
-st.subheader(
-    "⭐ Watchlist"
-)
-
-
-if watchlist_df.empty:
-
-    st.caption(
-        "No stocks are currently on the Watchlist."
-    )
-
-    st.page_link(
-        "pages/1_Screener.py",
-        label="Find Stocks",
-        icon="🔎",
-        use_container_width=True,
-    )
-
-else:
-
-    watchlist_sorted = (
-        watchlist_df
-        .sort_values(
-            by=[
-                "total_score",
-                "ticker",
-            ],
-            ascending=[
-                False,
-                True,
-            ],
-            na_position="last",
-        )
-        .head(
-            6
-        )
-    )
+#st.subheader(
+#    "⭐ Watchlist"
+#)
 
 
-    display_stock_table(
-        watchlist_sorted,
-        key="summary_watchlist",
-        height=255,
-    )
+#if watchlist_df.empty:
+#
+#    st.caption(
+#        "No stocks are currently on the Watchlist."
+#    )
+
+#    st.page_link(
+#        "pages/1_Screener.py",
+#        label="Find Stocks",
+#        icon="🔎",
+#        use_container_width=True,
+#    )
+
+#else:
+
+#    watchlist_sorted = (
+#        watchlist_df
+#        .sort_values(
+#            by=[
+#                "total_score",
+#                "ticker",
+#            ],
+#            ascending=[
+#                False,
+#                True,
+#            ],
+#            na_position="last",
+#        )
+#        .head(
+#            6
+#        )
+#    )
 
 
-    st.page_link(
-        "pages/3_Watchlist.py",
-        label="Open Watchlist",
-        icon="⭐",
-        use_container_width=True,
-    )
+#    display_stock_table(
+#        watchlist_sorted,
+#        key="summary_watchlist",
+#        height=255,
+#    )
+
+
+#    st.page_link(
+#        "pages/3_Watchlist.py",
+#        label="Open Watchlist",
+#        icon="⭐",
+#        use_container_width=True,
+#    )
 
 
 # ============================================================
@@ -739,6 +739,12 @@ st.subheader(
     "Explore"
 )
 
+st.page_link(
+    "pages/3_Watchlist.py",
+    label="Watchlist",
+    icon="⭐",
+    use_container_width=True,
+)
 
 st.page_link(
     "pages/1_Screener.py",

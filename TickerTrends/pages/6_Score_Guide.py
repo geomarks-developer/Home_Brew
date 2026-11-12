@@ -30,6 +30,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+if st.button(
+    "🏠 Home",
+    key="home_button",
+    use_container_width=False,
+):
+    st.switch_page("summary.py")
 
 # ============================================================
 # HEADER

@@ -423,6 +423,17 @@ def create_market_chart(
 
     return figure
 
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+if st.button(
+    "🏠 Home",
+    key="home_button",
+    use_container_width=False,
+):
+    st.switch_page("summary.py")
+
 
 # ============================================================
 # HEADER

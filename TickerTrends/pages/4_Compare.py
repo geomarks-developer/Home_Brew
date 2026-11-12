@@ -349,6 +349,17 @@ default_3 = choose_default(
     2,
 )
 
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+if st.button(
+    "🏠 Home",
+    key="home_button",
+    use_container_width=False,
+):
+    st.switch_page("summary.py")
+
 
 # ============================================================
 # HEADER

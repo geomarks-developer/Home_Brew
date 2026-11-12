@@ -212,6 +212,16 @@ def clear_watchlist_caches() -> None:
     load_watchlist.clear()
     load_changes.clear()
 
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+if st.button(
+    "🏠 Home",
+    key="home_button",
+    use_container_width=False,
+):
+    st.switch_page("summary.py")
 
 # ============================================================
 # HEADER

@@ -33,7 +33,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-
 # ============================================================
 # CONSTANTS
 # ============================================================
@@ -174,6 +173,18 @@ def apply_filters(
         na_position="last",
     )
     return filtered
+
+# ============================================================
+# NAVIGATION
+# ============================================================
+
+if st.button(
+    "🏠 Home",
+    key="home_button",
+    use_container_width=False,
+):
+    st.switch_page("summary.py")
+
 
 # ============================================================
 # HEADER
