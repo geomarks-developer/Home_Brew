@@ -9,7 +9,7 @@ venv/
 env/
 ENV/
 
-# MarketScope runtime data
+# Runtime data
 screener_cache.pkl
 *.pkl
 
